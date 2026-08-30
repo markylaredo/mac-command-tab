@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AdaptiveSwitcherView: View {
     @ObservedObject var model: SwitcherViewModel
+    let livePreviewCoordinator: LivePreviewCoordinator
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -68,7 +69,8 @@ struct AdaptiveSwitcherView: View {
                                 previewSize: model.layout.previewSize,
                                 itemSize: model.layout.itemSize,
                                 theme: model.theme,
-                                selectionEffect: model.selectionEffect
+                                selectionEffect: model.selectionEffect,
+                                livePreviewCoordinator: livePreviewCoordinator
                             )
                             .id(window.id)
                         }
@@ -166,6 +168,7 @@ private struct AdaptiveWindowCard: View {
     let itemSize: CGSize
     let theme: SwitcherTheme
     let selectionEffect: SwitcherSelectionEffect
+    let livePreviewCoordinator: LivePreviewCoordinator
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -182,6 +185,12 @@ private struct AdaptiveWindowCard: View {
     private var thumbnailCard: some View {
         VStack(spacing: 8) {
             previewImage
+                .overlay {
+                    LiveWindowPreviewView(
+                        windowID: window.id,
+                        coordinator: livePreviewCoordinator
+                    )
+                }
                 .frame(width: previewSize.width, height: previewSize.height)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(alignment: .topLeading) { indexBadge }

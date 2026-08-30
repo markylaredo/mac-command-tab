@@ -46,6 +46,7 @@
 		A10000000000000000000026 /* WindowSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* WindowSearch.swift */; };
 		A10000000000000000000027 /* SwitcherLayoutCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* SwitcherLayoutCalculatorTests.swift */; };
 		A10000000000000000000028 /* AdaptiveSwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* AdaptiveSwitcherView.swift */; };
+		A10000000000000000000029 /* LiveWindowPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* LiveWindowPreview.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -98,6 +99,7 @@
 		A20000000000000000000025 /* WindowSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSearch.swift; sourceTree = "<group>"; };
 		A20000000000000000000026 /* SwitcherLayoutCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitcherLayoutCalculatorTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000027 /* AdaptiveSwitcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveSwitcherView.swift; sourceTree = "<group>"; };
+		A20000000000000000000028 /* LiveWindowPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveWindowPreview.swift; sourceTree = "<group>"; };
 		A30000000000000000000001 /* MacCommandTab.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacCommandTab.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A30000000000000000000002 /* MacCommandTabTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MacCommandTabTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -233,6 +235,7 @@
 			children = (
 				A20000000000000000000013 /* WindowPreviewMatcher.swift */,
 				A20000000000000000000014 /* WindowPreviewService.swift */,
+				A20000000000000000000028 /* LiveWindowPreview.swift */,
 			);
 			path = Previews;
 			sourceTree = "<group>";
@@ -399,6 +402,7 @@
 				A10000000000000000000013 /* ScreenCapturePermission.swift in Sources */,
 				A10000000000000000000014 /* WindowPreviewMatcher.swift in Sources */,
 				A10000000000000000000015 /* WindowPreviewService.swift in Sources */,
+				A10000000000000000000029 /* LiveWindowPreview.swift in Sources */,
 				A10000000000000000000017 /* EffectDescriptor.swift in Sources */,
 				A10000000000000000000018 /* EffectEngine.swift in Sources */,
 				A10000000000000000000019 /* EffectPreviewSnapshotFactory.swift in Sources */,

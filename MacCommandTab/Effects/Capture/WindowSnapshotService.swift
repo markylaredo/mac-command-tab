@@ -7,7 +7,7 @@ actor WindowSnapshotService {
     private var frameCache: WindowFrameCache
     private var captureWindows: [WindowID: SCWindow] = [:]
 
-    init(cacheCapacity: Int = 12) {
+    init(cacheCapacity: Int = 32) {
         frameCache = WindowFrameCache(capacity: cacheCapacity)
     }
 
@@ -55,6 +55,14 @@ actor WindowSnapshotService {
             }
         }
         return frameCache.snapshots(for: Set(windows.map(\.id)))
+    }
+
+    func captureWindows(for windows: [WindowInfo]) async -> [WindowID: WindowCaptureSource] {
+        await prepare(for: windows)
+        let requestedIDs = Set(windows.map(\.id))
+        return captureWindows
+            .filter { requestedIDs.contains($0.key) }
+            .mapValues { WindowCaptureSource(window: $0) }
     }
 
     func captureSnapshot(

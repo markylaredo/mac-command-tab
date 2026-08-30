@@ -4,15 +4,16 @@ import AppKit
 final class SwitcherCoordinator {
     private let tracker = WindowTracker()
     private let hotkeyMonitor = GlobalHotkeyMonitor()
-    private let panel = SwitcherPanel()
+    private let panel: SwitcherPanel
     private let activator = WindowActivator()
     private let snapshotService: WindowSnapshotService
     private let previewService: WindowPreviewService
+    private let livePreviewCoordinator: LivePreviewCoordinator
     private let effectEngine: EffectEngine
     private let permissionWindow = PermissionsWindowController()
     private var permissionTimer: Timer?
     private var appDidBecomeActiveObserver: NSObjectProtocol?
-    private var previewTask: Task<Void, Never>?
+    private var cachedPreviewTask: Task<Void, Never>?
     private var sessionWindows: [WindowInfo] = []
     private var visibleSessionWindows: [WindowInfo] = []
     private var searchQuery = ""
@@ -38,7 +39,11 @@ final class SwitcherCoordinator {
     init() {
         let snapshotService = WindowSnapshotService()
         self.snapshotService = snapshotService
-        previewService = WindowPreviewService(snapshotService: snapshotService)
+        let previewService = WindowPreviewService(snapshotService: snapshotService)
+        self.previewService = previewService
+        let livePreviewCoordinator = LivePreviewCoordinator(previewService: previewService)
+        self.livePreviewCoordinator = livePreviewCoordinator
+        panel = SwitcherPanel(livePreviewCoordinator: livePreviewCoordinator)
         effectEngine = EffectEngine()
         panel.setPreset(currentPreset)
         panel.setTheme(currentTheme)
@@ -151,6 +156,11 @@ final class SwitcherCoordinator {
         currentAppearance = appearance
         appearance.save()
         panel.setAppearance(appearance)
+        if appearance == .thumbnails, !sessionWindows.isEmpty {
+            startPreviewSession(for: visibleSessionWindows)
+        } else if appearance != .thumbnails {
+            stopPreviewSession()
+        }
         onAppearanceChanged?(appearance)
     }
 
@@ -183,13 +193,11 @@ final class SwitcherCoordinator {
         screenCapturePermissionGranted = granted
         onScreenCapturePermissionStatusChanged?(granted)
         permissionWindow.updateStatus(notify: false)
-        if granted, !sessionWindows.isEmpty {
-            startPreviewRefresh(for: sessionWindows)
+        if granted, !sessionWindows.isEmpty, currentAppearance == .thumbnails {
+            startPreviewSession(for: visibleSessionWindows)
         }
         if !granted {
-            stopPreviewRefresh()
-            panel.updatePreviews([:])
-            Task { await previewService.clear() }
+            stopPreviewSession()
         }
     }
 
@@ -210,10 +218,14 @@ final class SwitcherCoordinator {
                 queryIsEmpty: true
             )
             if currentAppearance == .thumbnails {
-                startPreviewRefresh(for: windows)
+                startPreviewSession(for: windows)
             }
         case let .selectionChanged(index):
             panel.select(index)
+            let selectedID = visibleSessionWindows.indices.contains(index)
+                ? visibleSessionWindows[index].id
+                : nil
+            livePreviewCoordinator.updateSelection(selectedID)
         case let .searchCharacter(characters):
             searchQuery.append(contentsOf: characters)
             updateSearchResults()
@@ -224,7 +236,7 @@ final class SwitcherCoordinator {
             searchQuery = ""
             updateSearchResults()
         case .cancelled:
-            stopPreviewRefresh()
+            stopPreviewSession()
             panel.dismiss()
             sessionWindows = []
             visibleSessionWindows = []
@@ -232,7 +244,7 @@ final class SwitcherCoordinator {
             hotkeyMonitor.updateItemCount(tracker.windows.count)
         case let .committed(selection):
             let windows = visibleSessionWindows
-            stopPreviewRefresh()
+            stopPreviewSession()
             panel.dismiss()
             sessionWindows = []
             visibleSessionWindows = []
@@ -267,6 +279,17 @@ final class SwitcherCoordinator {
             columns: layout.columns,
             queryIsEmpty: searchQuery.isEmpty
         )
+        if currentAppearance == .thumbnails {
+            let selectedID = selectedIndex.flatMap { index in
+                filtered.indices.contains(index) ? filtered[index].id : nil
+            }
+            livePreviewCoordinator.updateVisibleWindows(
+                filtered,
+                selectedID: selectedID,
+                previewSize: layout.previewSize,
+                displayScale: panel.targetDisplayScale
+            )
+        }
     }
 
     private func playRestoreEffectIfAvailable(for window: WindowInfo) {
@@ -308,24 +331,37 @@ final class SwitcherCoordinator {
         ) != nil
     }
 
-    private func startPreviewRefresh(for windows: [WindowInfo]) {
-        stopPreviewRefresh()
-        panel.updatePreviews([:])
+    private func startPreviewSession(for windows: [WindowInfo]) {
+        stopPreviewSession()
         guard screenCapturePermissionGranted else { return }
-        previewTask = Task { @MainActor [weak self] in
+        cachedPreviewTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            await self.previewService.prepareSession(for: windows)
-            while !Task.isCancelled {
-                let previews = await self.previewService.capturePreviews(for: windows)
-                guard !Task.isCancelled else { return }
-                self.panel.updatePreviews(previews)
-                try? await Task.sleep(for: .milliseconds(900))
-            }
+            let cachedPreviews = await self.previewService.cachedPreviews(for: windows)
+            guard !Task.isCancelled else { return }
+            if !cachedPreviews.isEmpty { self.panel.updatePreviews(cachedPreviews) }
         }
+        beginLivePreviews()
     }
 
-    private func stopPreviewRefresh() {
-        previewTask?.cancel()
-        previewTask = nil
+    private func beginLivePreviews() {
+        guard screenCapturePermissionGranted,
+              currentAppearance == .thumbnails,
+              !sessionWindows.isEmpty else { return }
+        let selectedID = hotkeyMonitor.selectedIndex.flatMap { index in
+            visibleSessionWindows.indices.contains(index) ? visibleSessionWindows[index].id : nil
+        }
+        livePreviewCoordinator.beginSession(
+            allWindows: sessionWindows,
+            visibleWindows: visibleSessionWindows,
+            selectedID: selectedID,
+            previewSize: panel.currentPreviewSize,
+            displayScale: panel.targetDisplayScale
+        )
+    }
+
+    private func stopPreviewSession() {
+        cachedPreviewTask?.cancel()
+        cachedPreviewTask = nil
+        livePreviewCoordinator.stopAll()
     }
 }

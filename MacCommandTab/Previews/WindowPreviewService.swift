@@ -1,8 +1,13 @@
 import CoreGraphics
 import Foundation
+import ScreenCaptureKit
 
 struct WindowPreview: @unchecked Sendable {
     let image: CGImage
+}
+
+struct WindowCaptureSource: @unchecked Sendable {
+    let window: SCWindow
 }
 
 actor WindowPreviewService {
@@ -14,6 +19,10 @@ actor WindowPreviewService {
 
     func prepareSession(for windows: [WindowInfo]) async {
         await snapshotService.prepare(for: windows)
+    }
+
+    func captureWindows(for windows: [WindowInfo]) async -> [WindowID: WindowCaptureSource] {
+        await snapshotService.captureWindows(for: windows)
     }
 
     func capturePreviews(for windows: [WindowInfo]) async -> [WindowID: WindowPreview] {

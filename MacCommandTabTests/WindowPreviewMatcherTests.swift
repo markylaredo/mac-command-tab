@@ -46,3 +46,48 @@ final class WindowPreviewMatcherTests: XCTestCase {
         WindowPreviewCandidate(windowID: id, pid: pid, title: title, frame: frame)
     }
 }
+
+final class LivePreviewPolicyTests: XCTestCase {
+    func testSmallSwitcherUsesSixtyFPSForSelection() {
+        let ids = makeIDs(count: 5)
+        let profiles = LivePreviewPolicy().profiles(for: ids, selectedID: ids[1])
+
+        XCTAssertEqual(profiles[ids[1]]?.framesPerSecond, 60)
+        XCTAssertEqual(profiles[ids[0]]?.framesPerSecond, 30)
+    }
+
+    func testSelectedWindowReceivesHighestFrameRate() {
+        let ids = makeIDs(count: 12)
+        let profiles = LivePreviewPolicy().profiles(for: ids, selectedID: ids[4])
+
+        XCTAssertEqual(profiles.count, 12)
+        XCTAssertEqual(profiles[ids[4]]?.framesPerSecond, 45)
+        XCTAssertEqual(profiles[ids[0]]?.framesPerSecond, 30)
+        XCTAssertGreaterThan(
+            profiles[ids[4]]?.resolutionScale ?? 0,
+            profiles[ids[0]]?.resolutionScale ?? 0
+        )
+    }
+
+    func testCrowdedSwitcherReducesBackgroundFrameRate() {
+        let ids = makeIDs(count: 20)
+        let profiles = LivePreviewPolicy().profiles(for: ids, selectedID: ids[0])
+
+        XCTAssertEqual(profiles[ids[0]]?.framesPerSecond, 30)
+        XCTAssertEqual(profiles[ids[1]]?.framesPerSecond, 15)
+    }
+
+    func testExtremeCountsAreBoundedAndAlwaysIncludeSelection() {
+        let ids = makeIDs(count: 30)
+        let profiles = LivePreviewPolicy().profiles(for: ids, selectedID: ids[29])
+
+        XCTAssertEqual(profiles.count, LivePreviewPolicy().maximumConcurrentStreams)
+        XCTAssertNotNil(profiles[ids[29]])
+        XCTAssertEqual(profiles[ids[29]]?.framesPerSecond, 30)
+        XCTAssertEqual(profiles[ids[0]]?.framesPerSecond, 12)
+    }
+
+    private func makeIDs(count: Int) -> [WindowID] {
+        (0..<count).map { WindowID(rawValue: "live-\($0)") }
+    }
+}

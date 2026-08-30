@@ -8,7 +8,7 @@ final class SwitcherPanel: NSPanel {
     private var finalFrame = NSRect.zero
     private weak var targetScreen: NSScreen?
 
-    init() {
+    init(livePreviewCoordinator: LivePreviewCoordinator) {
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: 780, height: 226),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -23,11 +23,19 @@ final class SwitcherPanel: NSPanel {
         isMovable = false
         hidesOnDeactivate = false
         animationBehavior = .none
-        contentView = NSHostingView(rootView: AdaptiveSwitcherView(model: model))
+        contentView = NSHostingView(
+            rootView: AdaptiveSwitcherView(
+                model: model,
+                livePreviewCoordinator: livePreviewCoordinator
+            )
+        )
     }
 
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
+
+    var currentPreviewSize: CGSize { model.layout.previewSize }
+    var targetDisplayScale: CGFloat { targetScreen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2 }
 
     @discardableResult
     func show(windows: [WindowInfo], selectedIndex: Int) -> SwitcherLayout {
