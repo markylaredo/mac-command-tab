@@ -1,0 +1,537 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* AppDelegate.swift */; };
+		A10000000000000000000002 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* StatusBarController.swift */; };
+		A10000000000000000000003 /* SwitcherCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* SwitcherCoordinator.swift */; };
+		A10000000000000000000004 /* GlobalHotkeyMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* GlobalHotkeyMonitor.swift */; };
+		A10000000000000000000005 /* SwitcherStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* SwitcherStateMachine.swift */; };
+		A10000000000000000000006 /* WindowInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* WindowInfo.swift */; };
+		A10000000000000000000007 /* WindowDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* WindowDiscovery.swift */; };
+		A10000000000000000000008 /* WindowTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* WindowTracker.swift */; };
+		A10000000000000000000009 /* WindowActivator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* WindowActivator.swift */; };
+		A1000000000000000000000A /* SwitcherPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* SwitcherPanel.swift */; };
+		A1000000000000000000000B /* SwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000B /* SwitcherView.swift */; };
+		A1000000000000000000000C /* WindowCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* WindowCardView.swift */; };
+		A1000000000000000000000D /* AccessibilityPermission.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* AccessibilityPermission.swift */; };
+		A1000000000000000000000E /* PermissionsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* PermissionsWindowController.swift */; };
+		A1000000000000000000000F /* SwitcherStateMachineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000F /* SwitcherStateMachineTests.swift */; };
+		A10000000000000000000010 /* MRUWindowOrderingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* MRUWindowOrderingTests.swift */; };
+		A10000000000000000000011 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* XCTest.framework */; };
+		A10000000000000000000013 /* ScreenCapturePermission.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* ScreenCapturePermission.swift */; };
+		A10000000000000000000014 /* WindowPreviewMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* WindowPreviewMatcher.swift */; };
+		A10000000000000000000015 /* WindowPreviewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* WindowPreviewService.swift */; };
+		A10000000000000000000016 /* WindowPreviewMatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* WindowPreviewMatcherTests.swift */; };
+		A10000000000000000000017 /* EffectDescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* EffectDescriptor.swift */; };
+		A10000000000000000000018 /* EffectEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* EffectEngine.swift */; };
+		A10000000000000000000019 /* EffectPreviewSnapshotFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* EffectPreviewSnapshotFactory.swift */; };
+		A1000000000000000000001A /* WindowFrameCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* WindowFrameCache.swift */; };
+		A1000000000000000000001B /* WindowSnapshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001A /* WindowSnapshotService.swift */; };
+		A1000000000000000000001C /* EffectWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001B /* EffectWindow.swift */; };
+		A1000000000000000000001D /* EffectRendererView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* EffectRendererView.swift */; };
+		A1000000000000000000001E /* EffectRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001D /* EffectRenderer.swift */; };
+		A1000000000000000000001F /* Shared.metal in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001E /* Shared.metal */; };
+		A10000000000000000000020 /* TVEffect.metal in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001F /* TVEffect.metal */; };
+		A10000000000000000000021 /* PixelateEffect.metal in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* PixelateEffect.metal */; };
+		A10000000000000000000022 /* GlideEffect.metal in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* GlideEffect.metal */; };
+		A10000000000000000000023 /* WindowFrameCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* WindowFrameCacheTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A40000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A90000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A80000000000000000000001;
+			remoteInfo = MacCommandTab;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
+		A20000000000000000000003 /* SwitcherCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitcherCoordinator.swift; sourceTree = "<group>"; };
+		A20000000000000000000004 /* GlobalHotkeyMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotkeyMonitor.swift; sourceTree = "<group>"; };
+		A20000000000000000000005 /* SwitcherStateMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitcherStateMachine.swift; sourceTree = "<group>"; };
+		A20000000000000000000006 /* WindowInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowInfo.swift; sourceTree = "<group>"; };
+		A20000000000000000000007 /* WindowDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowDiscovery.swift; sourceTree = "<group>"; };
+		A20000000000000000000008 /* WindowTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowTracker.swift; sourceTree = "<group>"; };
+		A20000000000000000000009 /* WindowActivator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowActivator.swift; sourceTree = "<group>"; };
+		A2000000000000000000000A /* SwitcherPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitcherPanel.swift; sourceTree = "<group>"; };
+		A2000000000000000000000B /* SwitcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitcherView.swift; sourceTree = "<group>"; };
+		A2000000000000000000000C /* WindowCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowCardView.swift; sourceTree = "<group>"; };
+		A2000000000000000000000D /* AccessibilityPermission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityPermission.swift; sourceTree = "<group>"; };
+		A2000000000000000000000E /* PermissionsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsWindowController.swift; sourceTree = "<group>"; };
+		A2000000000000000000000F /* SwitcherStateMachineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitcherStateMachineTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000010 /* MRUWindowOrderingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MRUWindowOrderingTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000011 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
+		A20000000000000000000012 /* ScreenCapturePermission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCapturePermission.swift; sourceTree = "<group>"; };
+		A20000000000000000000013 /* WindowPreviewMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowPreviewMatcher.swift; sourceTree = "<group>"; };
+		A20000000000000000000014 /* WindowPreviewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowPreviewService.swift; sourceTree = "<group>"; };
+		A20000000000000000000015 /* WindowPreviewMatcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowPreviewMatcherTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000016 /* EffectDescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectDescriptor.swift; sourceTree = "<group>"; };
+		A20000000000000000000017 /* EffectEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectEngine.swift; sourceTree = "<group>"; };
+		A20000000000000000000018 /* EffectPreviewSnapshotFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectPreviewSnapshotFactory.swift; sourceTree = "<group>"; };
+		A20000000000000000000019 /* WindowFrameCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowFrameCache.swift; sourceTree = "<group>"; };
+		A2000000000000000000001A /* WindowSnapshotService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSnapshotService.swift; sourceTree = "<group>"; };
+		A2000000000000000000001B /* EffectWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectWindow.swift; sourceTree = "<group>"; };
+		A2000000000000000000001C /* EffectRendererView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectRendererView.swift; sourceTree = "<group>"; };
+		A2000000000000000000001D /* EffectRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectRenderer.swift; sourceTree = "<group>"; };
+		A2000000000000000000001E /* Shared.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shared.metal; sourceTree = "<group>"; };
+		A2000000000000000000001F /* TVEffect.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = TVEffect.metal; sourceTree = "<group>"; };
+		A20000000000000000000020 /* PixelateEffect.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = PixelateEffect.metal; sourceTree = "<group>"; };
+		A20000000000000000000021 /* GlideEffect.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = GlideEffect.metal; sourceTree = "<group>"; };
+		A20000000000000000000022 /* WindowFrameCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowFrameCacheTests.swift; sourceTree = "<group>"; };
+		A30000000000000000000001 /* MacCommandTab.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacCommandTab.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A30000000000000000000002 /* MacCommandTabTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MacCommandTabTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A50000000000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A50000000000000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000011 /* XCTest.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A60000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A60000000000000000000002 /* MacCommandTab */,
+				A60000000000000000000008 /* MacCommandTabTests */,
+				A60000000000000000000009 /* Frameworks */,
+				A6000000000000000000000A /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A60000000000000000000002 /* MacCommandTab */ = {
+			isa = PBXGroup;
+			children = (
+				A60000000000000000000003 /* App */,
+				A60000000000000000000004 /* Hotkeys */,
+				A60000000000000000000005 /* Windows */,
+				A60000000000000000000006 /* Switcher */,
+				A60000000000000000000007 /* Permissions */,
+				A6000000000000000000000B /* Previews */,
+				A6000000000000000000000C /* Effects */,
+			);
+			path = MacCommandTab;
+			sourceTree = "<group>";
+		};
+		A60000000000000000000003 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000001 /* AppDelegate.swift */,
+				A20000000000000000000002 /* StatusBarController.swift */,
+				A20000000000000000000003 /* SwitcherCoordinator.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A60000000000000000000004 /* Hotkeys */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000004 /* GlobalHotkeyMonitor.swift */,
+				A20000000000000000000005 /* SwitcherStateMachine.swift */,
+			);
+			path = Hotkeys;
+			sourceTree = "<group>";
+		};
+		A60000000000000000000005 /* Windows */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000006 /* WindowInfo.swift */,
+				A20000000000000000000007 /* WindowDiscovery.swift */,
+				A20000000000000000000008 /* WindowTracker.swift */,
+				A20000000000000000000009 /* WindowActivator.swift */,
+			);
+			path = Windows;
+			sourceTree = "<group>";
+		};
+		A60000000000000000000006 /* Switcher */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000000A /* SwitcherPanel.swift */,
+				A2000000000000000000000B /* SwitcherView.swift */,
+				A2000000000000000000000C /* WindowCardView.swift */,
+			);
+			path = Switcher;
+			sourceTree = "<group>";
+		};
+		A60000000000000000000007 /* Permissions */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000000D /* AccessibilityPermission.swift */,
+				A20000000000000000000012 /* ScreenCapturePermission.swift */,
+				A2000000000000000000000E /* PermissionsWindowController.swift */,
+			);
+			path = Permissions;
+			sourceTree = "<group>";
+		};
+		A60000000000000000000008 /* MacCommandTabTests */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000000F /* SwitcherStateMachineTests.swift */,
+				A20000000000000000000010 /* MRUWindowOrderingTests.swift */,
+				A20000000000000000000015 /* WindowPreviewMatcherTests.swift */,
+				A20000000000000000000022 /* WindowFrameCacheTests.swift */,
+			);
+			path = MacCommandTabTests;
+			sourceTree = "<group>";
+		};
+		A60000000000000000000009 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000011 /* XCTest.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		A6000000000000000000000A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A30000000000000000000001 /* MacCommandTab.app */,
+				A30000000000000000000002 /* MacCommandTabTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A6000000000000000000000B /* Previews */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000013 /* WindowPreviewMatcher.swift */,
+				A20000000000000000000014 /* WindowPreviewService.swift */,
+			);
+			path = Previews;
+			sourceTree = "<group>";
+		};
+		A6000000000000000000000C /* Effects */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000016 /* EffectDescriptor.swift */,
+				A20000000000000000000017 /* EffectEngine.swift */,
+				A20000000000000000000018 /* EffectPreviewSnapshotFactory.swift */,
+				A6000000000000000000000D /* Capture */,
+				A6000000000000000000000E /* Overlay */,
+				A6000000000000000000000F /* Metal */,
+			);
+			path = Effects;
+			sourceTree = "<group>";
+		};
+		A6000000000000000000000D /* Capture */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000019 /* WindowFrameCache.swift */,
+				A2000000000000000000001A /* WindowSnapshotService.swift */,
+			);
+			path = Capture;
+			sourceTree = "<group>";
+		};
+		A6000000000000000000000E /* Overlay */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000001B /* EffectWindow.swift */,
+				A2000000000000000000001C /* EffectRendererView.swift */,
+			);
+			path = Overlay;
+			sourceTree = "<group>";
+		};
+		A6000000000000000000000F /* Metal */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000001D /* EffectRenderer.swift */,
+				A2000000000000000000001E /* Shared.metal */,
+				A2000000000000000000001F /* TVEffect.metal */,
+				A20000000000000000000020 /* PixelateEffect.metal */,
+				A20000000000000000000021 /* GlideEffect.metal */,
+			);
+			path = Metal;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A80000000000000000000001 /* MacCommandTab */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000000000000000000001 /* Build configuration list for PBXNativeTarget "MacCommandTab" */;
+			buildPhases = (
+				A50000000000000000000001 /* Sources */,
+				A50000000000000000000002 /* Frameworks */,
+				A50000000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MacCommandTab;
+			productName = MacCommandTab;
+			productReference = A30000000000000000000001 /* MacCommandTab.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A80000000000000000000002 /* MacCommandTabTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000000000000000000002 /* Build configuration list for PBXNativeTarget "MacCommandTabTests" */;
+			buildPhases = (
+				A50000000000000000000005 /* Sources */,
+				A50000000000000000000006 /* Frameworks */,
+				A50000000000000000000007 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A70000000000000000000001 /* PBXTargetDependency */,
+			);
+			name = MacCommandTabTests;
+			productName = MacCommandTabTests;
+			productReference = A30000000000000000000002 /* MacCommandTabTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A90000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2660;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					A80000000000000000000001 = {
+						CreatedOnToolsVersion = 26.0;
+					};
+					A80000000000000000000002 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = A80000000000000000000001;
+					};
+				};
+			};
+			buildConfigurationList = AA0000000000000000000003 /* Build configuration list for PBXProject "			" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A60000000000000000000001;
+			productRefGroup = A6000000000000000000000A /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A80000000000000000000001 /* MacCommandTab */,
+				A80000000000000000000002 /* MacCommandTabTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A50000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A50000000000000000000007 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A50000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* AppDelegate.swift in Sources */,
+				A10000000000000000000002 /* StatusBarController.swift in Sources */,
+				A10000000000000000000003 /* SwitcherCoordinator.swift in Sources */,
+				A10000000000000000000004 /* GlobalHotkeyMonitor.swift in Sources */,
+				A10000000000000000000005 /* SwitcherStateMachine.swift in Sources */,
+				A10000000000000000000006 /* WindowInfo.swift in Sources */,
+				A10000000000000000000007 /* WindowDiscovery.swift in Sources */,
+				A10000000000000000000008 /* WindowTracker.swift in Sources */,
+				A10000000000000000000009 /* WindowActivator.swift in Sources */,
+				A1000000000000000000000A /* SwitcherPanel.swift in Sources */,
+				A1000000000000000000000B /* SwitcherView.swift in Sources */,
+				A1000000000000000000000C /* WindowCardView.swift in Sources */,
+				A1000000000000000000000D /* AccessibilityPermission.swift in Sources */,
+				A1000000000000000000000E /* PermissionsWindowController.swift in Sources */,
+				A10000000000000000000013 /* ScreenCapturePermission.swift in Sources */,
+				A10000000000000000000014 /* WindowPreviewMatcher.swift in Sources */,
+				A10000000000000000000015 /* WindowPreviewService.swift in Sources */,
+				A10000000000000000000017 /* EffectDescriptor.swift in Sources */,
+				A10000000000000000000018 /* EffectEngine.swift in Sources */,
+				A10000000000000000000019 /* EffectPreviewSnapshotFactory.swift in Sources */,
+				A1000000000000000000001A /* WindowFrameCache.swift in Sources */,
+				A1000000000000000000001B /* WindowSnapshotService.swift in Sources */,
+				A1000000000000000000001C /* EffectWindow.swift in Sources */,
+				A1000000000000000000001D /* EffectRendererView.swift in Sources */,
+				A1000000000000000000001E /* EffectRenderer.swift in Sources */,
+				A1000000000000000000001F /* Shared.metal in Sources */,
+				A10000000000000000000020 /* TVEffect.metal in Sources */,
+				A10000000000000000000021 /* PixelateEffect.metal in Sources */,
+				A10000000000000000000022 /* GlideEffect.metal in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A50000000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000000000000000000000F /* SwitcherStateMachineTests.swift in Sources */,
+				A10000000000000000000010 /* MRUWindowOrderingTests.swift in Sources */,
+				A10000000000000000000016 /* WindowPreviewMatcherTests.swift in Sources */,
+				A10000000000000000000023 /* WindowFrameCacheTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A70000000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A80000000000000000000001 /* MacCommandTab */;
+			targetProxy = A40000000000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		AB0000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		AB0000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		AB0000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = MacCommandTab;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSAccessibilityUsageDescription = "MacCommandTab needs Accessibility permission to detect shortcuts and switch between windows.";
+				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "MacCommandTab uses Screen Recording permission for live window previews and GPU window effects.";
+				MARKETING_VERSION = 0.2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.maccommandtab.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		AB0000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = MacCommandTab;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSAccessibilityUsageDescription = "MacCommandTab needs Accessibility permission to detect shortcuts and switch between windows.";
+				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "MacCommandTab uses Screen Recording permission for live window previews and GPU window effects.";
+				MARKETING_VERSION = 0.2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.maccommandtab.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
+		AB0000000000000000000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.maccommandtab.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MacCommandTab.app/Contents/MacOS/MacCommandTab";
+			};
+			name = Debug;
+		};
+		AB0000000000000000000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.maccommandtab.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MacCommandTab.app/Contents/MacOS/MacCommandTab";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AA0000000000000000000001 /* Build configuration list for PBXNativeTarget "MacCommandTab" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB0000000000000000000003 /* Debug */,
+				AB0000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA0000000000000000000002 /* Build configuration list for PBXNativeTarget "MacCommandTabTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB0000000000000000000005 /* Debug */,
+				AB0000000000000000000006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA0000000000000000000003 /* Build configuration list for PBXProject "			" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB0000000000000000000001 /* Debug */,
+				AB0000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A90000000000000000000001 /* Project object */;
+}

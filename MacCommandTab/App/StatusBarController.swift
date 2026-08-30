@@ -1,0 +1,257 @@
+import AppKit
+
+@MainActor
+final class StatusBarController: NSObject {
+    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private let coordinator: SwitcherCoordinator
+    private let shortcutItem = NSMenuItem(title: "Shortcut: Checking…", action: nil, keyEquivalent: "")
+    private let windowCountItem = NSMenuItem(title: "Detected Windows: —", action: nil, keyEquivalent: "")
+    private let permissionItem = NSMenuItem(title: "Accessibility: Checking…", action: nil, keyEquivalent: "")
+    private let previewPermissionItem = NSMenuItem(title: "Window Previews: Checking…", action: nil, keyEquivalent: "")
+    private let glassItem = NSMenuItem(title: "Glass Background", action: #selector(toggleGlass(_:)), keyEquivalent: "")
+    private var presetItems: [SwitcherPreset: NSMenuItem] = [:]
+    private var themeItems: [SwitcherTheme: NSMenuItem] = [:]
+    private var selectionEffectItems: [SwitcherSelectionEffect: NSMenuItem] = [:]
+    private var windowEffectItems: [WindowEffect: NSMenuItem] = [:]
+
+    init(coordinator: SwitcherCoordinator) {
+        self.coordinator = coordinator
+        super.init()
+        configureStatusItem()
+        coordinator.onAccessibilityPermissionStatusChanged = { [weak self] granted in
+            self?.permissionItem.title = granted ? "Accessibility: Granted" : "Accessibility: Required"
+        }
+        coordinator.onScreenCapturePermissionStatusChanged = { [weak self] granted in
+            self?.previewPermissionItem.title = granted ? "Window Previews: Granted" : "Window Previews: Required"
+        }
+        coordinator.onShortcutStatusChanged = { [weak self] active in
+            self?.shortcutItem.title = active ? "Shortcut: Option–Tab Active" : "Shortcut: Unavailable"
+        }
+        coordinator.onWindowCountChanged = { [weak self] count in
+            self?.windowCountItem.title = "Detected Windows: \(count)"
+        }
+        coordinator.onPresetChanged = { [weak self] preset in
+            self?.updatePresetSelection(preset)
+        }
+        coordinator.onThemeChanged = { [weak self] theme in
+            self?.updateThemeSelection(theme)
+        }
+        coordinator.onGlassEnabledChanged = { [weak self] enabled in
+            self?.glassItem.state = enabled ? .on : .off
+        }
+        coordinator.onSelectionEffectChanged = { [weak self] effect in
+            self?.updateSelectionEffect(effect)
+        }
+        coordinator.onWindowEffectChanged = { [weak self] effect in
+            self?.updateWindowEffect(effect)
+        }
+    }
+
+    private func configureStatusItem() {
+        if let button = statusItem.button {
+            button.image = Self.makeMenuBarIcon()
+            button.imagePosition = .imageLeading
+            button.title = "MCT"
+            button.font = .systemFont(ofSize: NSFont.smallSystemFontSize, weight: .semibold)
+            button.toolTip = "MacCommandTab — Option–Tab window switcher"
+            button.setAccessibilityLabel("MacCommandTab")
+        }
+        statusItem.isVisible = true
+
+        let menu = NSMenu()
+        menu.addItem(withTitle: "Open MacCommandTab…", action: #selector(openMacCommandTab), keyEquivalent: "")
+        menu.addItem(withTitle: "Refresh Window List", action: #selector(refreshWindows), keyEquivalent: "r")
+        menu.addItem(makePresetMenu())
+        menu.addItem(makeThemeMenu())
+        configureGlassItem()
+        menu.addItem(glassItem)
+        menu.addItem(makeSelectionEffectMenu())
+        menu.addItem(makeWindowEffectMenu())
+        menu.addItem(.separator())
+
+        [shortcutItem, windowCountItem, permissionItem, previewPermissionItem].forEach {
+            $0.isEnabled = false
+            menu.addItem($0)
+        }
+
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Permissions…", action: #selector(openPermissions), keyEquivalent: "")
+        menu.addItem(withTitle: "About MacCommandTab", action: #selector(showAbout), keyEquivalent: "")
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Quit MacCommandTab", action: #selector(quit), keyEquivalent: "q")
+        menu.items.forEach { $0.target = self }
+        statusItem.menu = menu
+    }
+
+    private func makePresetMenu() -> NSMenuItem {
+        let item = NSMenuItem(title: "Switcher Layout", action: nil, keyEquivalent: "")
+        let submenu = NSMenu(title: "Switcher Layout")
+
+        for preset in SwitcherPreset.allCases {
+            let presetItem = NSMenuItem(title: preset.title, action: #selector(selectPreset(_:)), keyEquivalent: "")
+            presetItem.toolTip = preset.subtitle
+            presetItem.representedObject = preset.rawValue
+            presetItem.target = self
+            presetItems[preset] = presetItem
+            submenu.addItem(presetItem)
+        }
+
+        item.submenu = submenu
+        updatePresetSelection(coordinator.currentPreset)
+        return item
+    }
+
+    private func updatePresetSelection(_ selectedPreset: SwitcherPreset) {
+        for (preset, item) in presetItems {
+            item.state = preset == selectedPreset ? .on : .off
+        }
+    }
+
+    private func makeThemeMenu() -> NSMenuItem {
+        let item = NSMenuItem(title: "Switcher Theme", action: nil, keyEquivalent: "")
+        let submenu = NSMenu(title: "Switcher Theme")
+
+        for theme in SwitcherTheme.allCases {
+            let themeItem = NSMenuItem(title: theme.title, action: #selector(selectTheme(_:)), keyEquivalent: "")
+            themeItem.toolTip = theme.subtitle
+            themeItem.representedObject = theme.rawValue
+            themeItem.target = self
+            themeItems[theme] = themeItem
+            submenu.addItem(themeItem)
+        }
+
+        item.submenu = submenu
+        updateThemeSelection(coordinator.currentTheme)
+        return item
+    }
+
+    private func updateThemeSelection(_ selectedTheme: SwitcherTheme) {
+        for (theme, item) in themeItems {
+            item.state = theme == selectedTheme ? .on : .off
+        }
+    }
+
+    private func configureGlassItem() {
+        glassItem.target = self
+        glassItem.state = coordinator.isGlassEnabled ? .on : .off
+        glassItem.toolTip = "Use native macOS translucency behind the switcher"
+    }
+
+    private func makeSelectionEffectMenu() -> NSMenuItem {
+        let item = NSMenuItem(title: "Selection Effect", action: nil, keyEquivalent: "")
+        let submenu = NSMenu(title: "Selection Effect")
+
+        for effect in SwitcherSelectionEffect.allCases {
+            let effectItem = NSMenuItem(title: effect.title, action: #selector(selectSelectionEffect(_:)), keyEquivalent: "")
+            effectItem.toolTip = effect.subtitle
+            effectItem.representedObject = effect.rawValue
+            effectItem.target = self
+            selectionEffectItems[effect] = effectItem
+            submenu.addItem(effectItem)
+        }
+
+        item.submenu = submenu
+        updateSelectionEffect(coordinator.currentSelectionEffect)
+        return item
+    }
+
+    private func updateSelectionEffect(_ selectedEffect: SwitcherSelectionEffect) {
+        for (effect, item) in selectionEffectItems {
+            item.state = effect == selectedEffect ? .on : .off
+        }
+    }
+
+    private func makeWindowEffectMenu() -> NSMenuItem {
+        let item = NSMenuItem(title: "Window Effect", action: nil, keyEquivalent: "")
+        let submenu = NSMenu(title: "Window Effect")
+
+        for effect in WindowEffect.allCases {
+            let effectItem = NSMenuItem(title: effect.title, action: #selector(selectWindowEffect(_:)), keyEquivalent: "")
+            effectItem.toolTip = effect.subtitle
+            effectItem.representedObject = effect.rawValue
+            effectItem.target = self
+            windowEffectItems[effect] = effectItem
+            submenu.addItem(effectItem)
+        }
+
+        item.submenu = submenu
+        updateWindowEffect(coordinator.currentWindowEffect)
+        return item
+    }
+
+    private func updateWindowEffect(_ selectedEffect: WindowEffect) {
+        for (effect, item) in windowEffectItems {
+            item.state = effect == selectedEffect ? .on : .off
+        }
+    }
+
+    private static func makeMenuBarIcon() -> NSImage {
+        let size = NSSize(width: 18, height: 18)
+        let image = NSImage(size: size, flipped: false) { _ in
+            NSColor.black.setStroke()
+
+            let backWindow = NSBezierPath(roundedRect: NSRect(x: 5.5, y: 7, width: 10, height: 7.5), xRadius: 1.4, yRadius: 1.4)
+            backWindow.lineWidth = 1.5
+            backWindow.stroke()
+
+            let frontWindow = NSBezierPath(roundedRect: NSRect(x: 2.5, y: 3.5, width: 10, height: 7.5), xRadius: 1.4, yRadius: 1.4)
+            frontWindow.lineWidth = 1.5
+            frontWindow.stroke()
+
+            let arrow = NSBezierPath()
+            arrow.lineWidth = 1.5
+            arrow.lineCapStyle = .round
+            arrow.lineJoinStyle = .round
+            arrow.move(to: NSPoint(x: 5, y: 7.25))
+            arrow.line(to: NSPoint(x: 10, y: 7.25))
+            arrow.move(to: NSPoint(x: 8.25, y: 9))
+            arrow.line(to: NSPoint(x: 10, y: 7.25))
+            arrow.line(to: NSPoint(x: 8.25, y: 5.5))
+            arrow.stroke()
+
+            return true
+        }
+        image.isTemplate = true
+        image.accessibilityDescription = "MacCommandTab"
+        return image
+    }
+
+    @objc private func openMacCommandTab() { coordinator.showPermissionWindow() }
+    @objc private func refreshWindows() { coordinator.refreshWindows() }
+    @objc private func openPermissions() { coordinator.showPermissionWindow() }
+
+    @objc private func selectPreset(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String,
+              let preset = SwitcherPreset(rawValue: rawValue) else { return }
+        coordinator.setPreset(preset)
+    }
+
+    @objc private func selectTheme(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String,
+              let theme = SwitcherTheme(rawValue: rawValue) else { return }
+        coordinator.setTheme(theme)
+    }
+
+    @objc private func toggleGlass(_ sender: NSMenuItem) {
+        coordinator.setGlassEnabled(sender.state != .on)
+    }
+
+    @objc private func selectSelectionEffect(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String,
+              let effect = SwitcherSelectionEffect(rawValue: rawValue) else { return }
+        coordinator.setSelectionEffect(effect)
+    }
+
+    @objc private func selectWindowEffect(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String,
+              let effect = WindowEffect(rawValue: rawValue) else { return }
+        coordinator.setWindowEffect(effect)
+    }
+
+    @objc private func showAbout() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(nil)
+    }
+
+    @objc private func quit() { NSApp.terminate(nil) }
+}
