@@ -11,8 +11,11 @@ final class SwitcherCoordinator {
     private let effectEngine: EffectEngine
     private let permissionWindow = PermissionsWindowController()
     private var permissionTimer: Timer?
+    private var appDidBecomeActiveObserver: NSObjectProtocol?
     private var previewTask: Task<Void, Never>?
     private var sessionWindows: [WindowInfo] = []
+    private var visibleSessionWindows: [WindowInfo] = []
+    private var searchQuery = ""
     private var accessibilityPermissionGranted = false
     private var screenCapturePermissionGranted = false
     private(set) var currentPreset = SwitcherPreset.saved
@@ -20,6 +23,7 @@ final class SwitcherCoordinator {
     private(set) var isGlassEnabled = SwitcherGlassPreference.saved
     private(set) var currentSelectionEffect = SwitcherSelectionEffect.saved
     private(set) var currentWindowEffect = WindowEffect.saved
+    private(set) var currentAppearance = SwitcherAppearance.saved
     var onAccessibilityPermissionStatusChanged: ((Bool) -> Void)?
     var onScreenCapturePermissionStatusChanged: ((Bool) -> Void)?
     var onShortcutStatusChanged: ((Bool) -> Void)?
@@ -29,6 +33,7 @@ final class SwitcherCoordinator {
     var onGlassEnabledChanged: ((Bool) -> Void)?
     var onSelectionEffectChanged: ((SwitcherSelectionEffect) -> Void)?
     var onWindowEffectChanged: ((WindowEffect) -> Void)?
+    var onAppearanceChanged: ((SwitcherAppearance) -> Void)?
 
     init() {
         let snapshotService = WindowSnapshotService()
@@ -39,10 +44,14 @@ final class SwitcherCoordinator {
         panel.setTheme(currentTheme)
         panel.setGlassEnabled(isGlassEnabled)
         panel.setSelectionEffect(currentSelectionEffect)
+        panel.setAppearance(currentAppearance)
         hotkeyMonitor.updateNavigationLayout(currentPreset.navigationLayout)
         tracker.onWindowsChanged = { [weak self] windows in
-            self?.hotkeyMonitor.updateItemCount(windows.count)
-            self?.onWindowCountChanged?(windows.count)
+            guard let self else { return }
+            if self.sessionWindows.isEmpty {
+                self.hotkeyMonitor.updateItemCount(windows.count)
+            }
+            self.onWindowCountChanged?(windows.count)
         }
         hotkeyMonitor.onAction = { [weak self] action in self?.handle(action) }
         permissionWindow.onAccessibilityPermissionChanged = { [weak self] granted in
@@ -65,9 +74,24 @@ final class SwitcherCoordinator {
                 self?.applyScreenCapturePermission(ScreenCapturePermission.isGranted)
             }
         }
+        appDidBecomeActiveObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: NSApp,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.refreshPermissionStatus()
+            }
+        }
 
         if !accessibilityPermissionGranted { AccessibilityPermission.request() }
         permissionWindow.show()
+    }
+
+    private func refreshPermissionStatus() {
+        applyAccessibilityPermission(AccessibilityPermission.isGranted)
+        applyScreenCapturePermission(ScreenCapturePermission.isGranted)
+        permissionWindow.updateStatus(notify: false)
     }
 
     func showPermissionWindow() {
@@ -122,6 +146,14 @@ final class SwitcherCoordinator {
         onWindowEffectChanged?(effect)
     }
 
+    func setAppearance(_ appearance: SwitcherAppearance) {
+        guard appearance != currentAppearance else { return }
+        currentAppearance = appearance
+        appearance.save()
+        panel.setAppearance(appearance)
+        onAppearanceChanged?(appearance)
+    }
+
     private func applyAccessibilityPermission(_ granted: Bool) {
         guard granted != accessibilityPermissionGranted else {
             onAccessibilityPermissionStatusChanged?(granted)
@@ -167,24 +199,74 @@ final class SwitcherCoordinator {
             let windows = tracker.windows
             guard !windows.isEmpty else { return }
             sessionWindows = windows
-            panel.show(windows: windows, selectedIndex: min(selection, windows.count - 1))
-            startPreviewRefresh(for: windows)
+            visibleSessionWindows = windows
+            searchQuery = ""
+            let selectedIndex = min(selection, windows.count - 1)
+            let layout = panel.show(windows: windows, selectedIndex: selectedIndex)
+            hotkeyMonitor.updateActiveSession(
+                itemCount: windows.count,
+                selectedIndex: selectedIndex,
+                columns: layout.columns,
+                queryIsEmpty: true
+            )
+            if currentAppearance == .thumbnails {
+                startPreviewRefresh(for: windows)
+            }
         case let .selectionChanged(index):
             panel.select(index)
+        case let .searchCharacter(characters):
+            searchQuery.append(contentsOf: characters)
+            updateSearchResults()
+        case .searchBackspace:
+            searchQuery = WindowSearch.deletingLastCharacter(from: searchQuery)
+            updateSearchResults()
+        case .searchCleared:
+            searchQuery = ""
+            updateSearchResults()
         case .cancelled:
             stopPreviewRefresh()
             panel.dismiss()
             sessionWindows = []
+            visibleSessionWindows = []
+            searchQuery = ""
+            hotkeyMonitor.updateItemCount(tracker.windows.count)
         case let .committed(selection):
-            let windows = sessionWindows
+            let windows = visibleSessionWindows
             stopPreviewRefresh()
             panel.dismiss()
             sessionWindows = []
+            visibleSessionWindows = []
+            searchQuery = ""
+            hotkeyMonitor.updateItemCount(tracker.windows.count)
             guard windows.indices.contains(selection) else { return }
             let window = windows[selection]
             activator.activate(window)
             playRestoreEffectIfAvailable(for: window)
         }
+    }
+
+    private func updateSearchResults() {
+        let selectedID = hotkeyMonitor.selectedIndex.flatMap { index in
+            visibleSessionWindows.indices.contains(index) ? visibleSessionWindows[index].id : nil
+        }
+        let filtered = WindowSearch.filter(sessionWindows, query: searchQuery)
+        let selectedIndex = WindowSearch.selectionIndex(
+            preserving: selectedID,
+            visibleIDs: filtered.map(\.id)
+        )
+        visibleSessionWindows = filtered
+        let layout = panel.update(
+            windows: filtered,
+            selectedIndex: selectedIndex,
+            query: searchQuery,
+            animated: true
+        )
+        hotkeyMonitor.updateActiveSession(
+            itemCount: filtered.count,
+            selectedIndex: selectedIndex,
+            columns: layout.columns,
+            queryIsEmpty: searchQuery.isEmpty
+        )
     }
 
     private func playRestoreEffectIfAvailable(for window: WindowInfo) {

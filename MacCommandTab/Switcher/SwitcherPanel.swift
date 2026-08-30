@@ -4,7 +4,9 @@ import SwiftUI
 @MainActor
 final class SwitcherPanel: NSPanel {
     private let model = SwitcherViewModel()
+    private let layoutCalculator = SwitcherLayoutCalculator()
     private var finalFrame = NSRect.zero
+    private weak var targetScreen: NSScreen?
 
     init() {
         super.init(
@@ -21,45 +23,30 @@ final class SwitcherPanel: NSPanel {
         isMovable = false
         hidesOnDeactivate = false
         animationBehavior = .none
-        contentView = NSHostingView(rootView: SwitcherView(model: model))
+        contentView = NSHostingView(rootView: AdaptiveSwitcherView(model: model))
     }
 
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
-    func show(windows: [WindowInfo], selectedIndex: Int) {
-        guard !windows.isEmpty else { return }
+    @discardableResult
+    func show(windows: [WindowInfo], selectedIndex: Int) -> SwitcherLayout {
+        guard !windows.isEmpty else { return .empty }
         model.windows = windows
         model.selectedIndex = min(max(selectedIndex, 0), windows.count - 1)
+        model.searchQuery = ""
 
         let screen = screenContainingMouse() ?? NSScreen.main
-        let availableWidth = max(360, (screen?.visibleFrame.width ?? 900) - 80)
-        let preset = model.preset
-        let contentWidth: CGFloat
-        switch preset {
-        case .circle:
-            contentWidth = 680
-        case .tile:
-            let columns = (windows.count + 1) / 2
-            contentWidth = CGFloat(columns) * preset.cardWidth
-                + CGFloat(max(columns - 1, 0)) * preset.cardSpacing
-                + 28
-        case .carousel:
-            contentWidth = CGFloat(windows.count) * preset.cardWidth
-                + CGFloat(max(windows.count - 1, 0)) * preset.cardSpacing
-                + 26
-        }
-        let minimumWidth: CGFloat = preset == .circle ? 520 : 292
-        let panelWidth = min(max(minimumWidth, contentWidth), min(1_100, availableWidth))
-        let panelSize = NSSize(width: panelWidth, height: preset.panelHeight)
+        targetScreen = screen
         let visibleFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 900, height: 700)
-        finalFrame = NSRect(
-            x: visibleFrame.midX - panelSize.width / 2,
-            y: visibleFrame.midY - panelSize.height / 2,
-            width: panelSize.width,
-            height: panelSize.height
+        let layout = layoutCalculator.calculateLayout(
+            itemCount: windows.count,
+            availableSize: visibleFrame.size,
+            appearance: model.appearance
         )
-        let initialFrame = finalFrame.insetBy(dx: panelSize.width * 0.01, dy: panelSize.height * 0.01)
+        model.layout = layout
+        finalFrame = centeredFrame(size: layout.panelSize, in: visibleFrame)
+        let initialFrame = finalFrame.insetBy(dx: layout.panelSize.width * 0.01, dy: layout.panelSize.height * 0.01)
         setFrame(initialFrame, display: true)
         alphaValue = 0
         orderFrontRegardless()
@@ -69,6 +56,40 @@ final class SwitcherPanel: NSPanel {
             animator().alphaValue = 1
             animator().setFrame(finalFrame, display: true)
         }
+        return layout
+    }
+
+    @discardableResult
+    func update(
+        windows: [WindowInfo],
+        selectedIndex: Int?,
+        query: String,
+        animated: Bool
+    ) -> SwitcherLayout {
+        model.windows = windows
+        model.selectedIndex = selectedIndex ?? -1
+        model.searchQuery = query
+        let visibleFrame = targetScreen?.visibleFrame
+            ?? screenContainingMouse()?.visibleFrame
+            ?? NSScreen.main?.visibleFrame
+            ?? NSRect(x: 0, y: 0, width: 900, height: 700)
+        let layout = layoutCalculator.calculateLayout(
+            itemCount: windows.count,
+            availableSize: visibleFrame.size,
+            appearance: model.appearance
+        )
+        model.layout = layout
+        finalFrame = centeredFrame(size: layout.panelSize, in: visibleFrame)
+        if animated, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.18
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                animator().setFrame(finalFrame, display: true)
+            }
+        } else {
+            setFrame(finalFrame, display: true)
+        }
+        return layout
     }
 
     func select(_ index: Int) {
@@ -82,6 +103,17 @@ final class SwitcherPanel: NSPanel {
 
     func setPreset(_ preset: SwitcherPreset) {
         model.preset = preset
+    }
+
+    func setAppearance(_ appearance: SwitcherAppearance) {
+        model.appearance = appearance
+        guard isVisible else { return }
+        _ = update(
+            windows: model.windows,
+            selectedIndex: model.selectedIndex,
+            query: model.searchQuery,
+            animated: true
+        )
     }
 
     func setTheme(_ theme: SwitcherTheme) {
@@ -112,5 +144,14 @@ final class SwitcherPanel: NSPanel {
     private func screenContainingMouse() -> NSScreen? {
         let point = NSEvent.mouseLocation
         return NSScreen.screens.first { NSMouseInRect(point, $0.frame, false) }
+    }
+
+    private func centeredFrame(size: CGSize, in visibleFrame: NSRect) -> NSRect {
+        NSRect(
+            x: visibleFrame.midX - size.width / 2,
+            y: visibleFrame.midY - size.height / 2,
+            width: size.width,
+            height: size.height
+        )
     }
 }

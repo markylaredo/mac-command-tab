@@ -4,6 +4,9 @@ import AppKit
 final class PermissionsWindowController: NSWindowController {
     private let accessibilityStatusLabel = NSTextField(labelWithString: "")
     private let screenCaptureStatusLabel = NSTextField(labelWithString: "")
+    private weak var screenCaptureActionButton: NSButton?
+    private var accessibilityCheckTask: Task<Void, Never>?
+    private var screenCaptureRestartSuggested = false
     private let effectsPopUp = NSPopUpButton(frame: .zero, pullsDown: false)
     private let effectsStatusLabel = NSTextField(labelWithString: "Ready")
     var onAccessibilityPermissionChanged: ((Bool) -> Void)?
@@ -26,6 +29,10 @@ final class PermissionsWindowController: NSWindowController {
 
     required init?(coder: NSCoder) { nil }
 
+    deinit {
+        accessibilityCheckTask?.cancel()
+    }
+
     func show() {
         updateStatus()
         showWindow(nil)
@@ -37,7 +44,7 @@ final class PermissionsWindowController: NSWindowController {
         let accessibilityGranted = AccessibilityPermission.isGranted
         let screenCaptureGranted = ScreenCapturePermission.isGranted
         configure(accessibilityStatusLabel, granted: accessibilityGranted)
-        configure(screenCaptureStatusLabel, granted: screenCaptureGranted)
+        updateScreenCaptureStatus(granted: screenCaptureGranted)
         if notify {
             onAccessibilityPermissionChanged?(accessibilityGranted)
             onScreenCapturePermissionChanged?(screenCaptureGranted)
@@ -69,9 +76,10 @@ final class PermissionsWindowController: NSWindowController {
             action: #selector(requestScreenCapturePermission),
             settingsAction: #selector(openScreenCaptureSettings)
         )
+        screenCaptureActionButton = screenCaptureRow.actionButton
         let effectsPreview = effectsPreviewSection()
 
-        let stack = NSStackView(views: [title, message, accessibilityRow, screenCaptureRow, effectsPreview])
+        let stack = NSStackView(views: [title, message, accessibilityRow.view, screenCaptureRow.view, effectsPreview])
         stack.orientation = .vertical
         stack.spacing = 18
         stack.alignment = .centerX
@@ -149,7 +157,7 @@ final class PermissionsWindowController: NSWindowController {
         actionTitle: String,
         action: Selector,
         settingsAction: Selector
-    ) -> NSView {
+    ) -> (view: NSView, actionButton: NSButton) {
         let heading = NSTextField(labelWithString: title)
         heading.font = .systemFont(ofSize: 14, weight: .semibold)
         statusLabel.font = .systemFont(ofSize: 12, weight: .medium)
@@ -169,30 +177,186 @@ final class PermissionsWindowController: NSWindowController {
         row.spacing = 10
         row.alignment = .centerY
         row.widthAnchor.constraint(equalToConstant: 424).isActive = true
-        return row
+        return (row, actionButton)
     }
 
     private func configure(_ label: NSTextField, granted: Bool) {
         label.stringValue = granted ? "Granted" : "Permission required"
         label.textColor = granted ? .systemGreen : .secondaryLabelColor
+        if label === accessibilityStatusLabel, !granted {
+            label.toolTip = "If MacCommandTab is already enabled, use System Settings to repair its stale development-build entry."
+        } else {
+            label.toolTip = nil
+        }
     }
 
     @objc private func checkAccessibilityPermission() {
-        if !AccessibilityPermission.isGranted { AccessibilityPermission.request() }
-        updateStatus()
+        accessibilityCheckTask?.cancel()
+        guard !AccessibilityPermission.isGranted else {
+            updateStatus()
+            return
+        }
+
+        accessibilityStatusLabel.stringValue = "Waiting for approval…"
+        accessibilityStatusLabel.textColor = .systemOrange
+        AccessibilityPermission.request()
+        accessibilityCheckTask = Task { @MainActor [weak self] in
+            for _ in 0..<12 {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else { return }
+                if AccessibilityPermission.isGranted {
+                    self?.updateStatus()
+                    return
+                }
+            }
+            self?.updateStatus()
+        }
     }
 
     @objc private func requestScreenCapturePermission() {
-        if !ScreenCapturePermission.isGranted { ScreenCapturePermission.request() }
+        if screenCaptureRestartSuggested {
+            relaunchApplication()
+            return
+        }
+
+        if !ScreenCapturePermission.isGranted {
+            let accepted = ScreenCapturePermission.request()
+            screenCaptureRestartSuggested = accepted && !ScreenCapturePermission.isGranted
+        }
         updateStatus()
     }
 
     @objc private func openAccessibilitySettings() {
-        AccessibilityPermission.openSystemSettings()
+        guard !AccessibilityPermission.isGranted else {
+            updateStatus()
+            return
+        }
+
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "Grant or repair Accessibility permission"
+        alert.informativeText = "If MacCommandTab is already enabled in System Settings, that entry may belong to an older ad-hoc signed build. You can reset only MacCommandTab's stale entry, then approve the fresh prompt.\n\nRunning app:\n\(AccessibilityPermission.applicationPath)"
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "Reset Stale Entry")
+        alert.addButton(withTitle: "Cancel")
+
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            AccessibilityPermission.openSystemSettings()
+        case .alertSecondButtonReturn:
+            repairAccessibilityPermission()
+        default:
+            break
+        }
+    }
+
+    private func repairAccessibilityPermission() {
+        accessibilityCheckTask?.cancel()
+        accessibilityStatusLabel.stringValue = "Resetting stale entry…"
+        accessibilityStatusLabel.textColor = .systemOrange
+
+        accessibilityCheckTask = Task { @MainActor [weak self] in
+            let resetSucceeded = await AccessibilityPermission.resetStaleEntry()
+            guard let self, !Task.isCancelled else { return }
+            guard resetSucceeded else {
+                accessibilityStatusLabel.stringValue = "Reset failed — open settings"
+                accessibilityStatusLabel.textColor = .systemRed
+                AccessibilityPermission.openSystemSettings()
+                return
+            }
+
+            AccessibilityPermission.request()
+            AccessibilityPermission.openSystemSettings()
+            accessibilityStatusLabel.stringValue = "Approve the fresh entry…"
+            accessibilityStatusLabel.textColor = .systemOrange
+        }
     }
 
     @objc private func openScreenCaptureSettings() {
-        ScreenCapturePermission.openSystemSettings()
+        guard !ScreenCapturePermission.isGranted else {
+            updateStatus()
+            return
+        }
+
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "Grant or repair Window Previews"
+        alert.informativeText = "If MacCommandTab is already enabled under Screen & System Audio Recording, that entry may belong to an older ad-hoc signed build. Reset only MacCommandTab's stale preview entry, approve it again, then restart the app.\n\nRunning app:\n\(ScreenCapturePermission.applicationPath)"
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "Reset Stale Entry")
+        alert.addButton(withTitle: "Cancel")
+
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            screenCaptureRestartSuggested = true
+            updateScreenCaptureStatus(granted: false)
+            ScreenCapturePermission.openSystemSettings()
+        case .alertSecondButtonReturn:
+            repairScreenCapturePermission()
+        default:
+            break
+        }
+    }
+
+    private func repairScreenCapturePermission() {
+        screenCaptureRestartSuggested = true
+        screenCaptureStatusLabel.stringValue = "Resetting stale entry…"
+        screenCaptureStatusLabel.textColor = .systemOrange
+        screenCaptureActionButton?.title = "Restart App"
+
+        Task { @MainActor [weak self] in
+            let resetSucceeded = await ScreenCapturePermission.resetStaleEntry()
+            guard let self else { return }
+            guard resetSucceeded else {
+                screenCaptureRestartSuggested = false
+                screenCaptureStatusLabel.stringValue = "Reset failed — open settings"
+                screenCaptureStatusLabel.textColor = .systemRed
+                screenCaptureActionButton?.title = "Enable Previews"
+                ScreenCapturePermission.openSystemSettings()
+                return
+            }
+
+            ScreenCapturePermission.request()
+            ScreenCapturePermission.openSystemSettings()
+            updateScreenCaptureStatus(granted: ScreenCapturePermission.isGranted)
+        }
+    }
+
+    private func updateScreenCaptureStatus(granted: Bool) {
+        if granted {
+            screenCaptureRestartSuggested = false
+            configure(screenCaptureStatusLabel, granted: true)
+            screenCaptureActionButton?.title = "Enabled"
+            screenCaptureActionButton?.isEnabled = false
+        } else if screenCaptureRestartSuggested {
+            screenCaptureStatusLabel.stringValue = "Restart after enabling"
+            screenCaptureStatusLabel.textColor = .systemOrange
+            screenCaptureActionButton?.title = "Restart App"
+            screenCaptureActionButton?.isEnabled = true
+        } else {
+            configure(screenCaptureStatusLabel, granted: false)
+            screenCaptureActionButton?.title = "Enable Previews"
+            screenCaptureActionButton?.isEnabled = true
+        }
+    }
+
+    private func relaunchApplication() {
+        let launcher = Process()
+        launcher.executableURL = URL(fileURLWithPath: "/bin/sh")
+        launcher.arguments = [
+            "-c",
+            "sleep 0.5; exec /usr/bin/open \"$1\"",
+            "MacCommandTab-relaunch",
+            Bundle.main.bundleURL.path
+        ]
+
+        do {
+            try launcher.run()
+            NSApp.terminate(nil)
+        } catch {
+            screenCaptureStatusLabel.stringValue = "Restart failed — reopen manually"
+            screenCaptureStatusLabel.textColor = .systemRed
+        }
     }
 
     @objc private func previewSelectedEffect() {

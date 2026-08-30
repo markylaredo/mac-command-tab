@@ -1,4 +1,5 @@
 @preconcurrency import ApplicationServices
+import AppKit
 import Foundation
 
 @MainActor
@@ -8,10 +9,13 @@ final class GlobalHotkeyMonitor {
     private var stateMachine = SwitcherStateMachine()
     private var itemCount = 0
     private var navigationLayout = SwitcherNavigationLayout.linear
+    private var navigationColumns: Int?
+    private var searchQueryIsEmpty = true
     private var swallowedKeyCodes: Set<CGKeyCode> = []
     var onAction: ((SwitcherAction) -> Void)?
 
     var isRunning: Bool { eventTap != nil }
+    var selectedIndex: Int? { stateMachine.selection }
 
     func updateItemCount(_ count: Int) {
         itemCount = count
@@ -20,6 +24,19 @@ final class GlobalHotkeyMonitor {
 
     func updateNavigationLayout(_ layout: SwitcherNavigationLayout) {
         navigationLayout = layout
+    }
+
+    func updateActiveSession(
+        itemCount: Int,
+        selectedIndex: Int?,
+        columns: Int,
+        queryIsEmpty: Bool
+    ) {
+        self.itemCount = itemCount
+        navigationLayout = .tileGrid
+        navigationColumns = max(1, columns)
+        searchQueryIsEmpty = queryIsEmpty
+        stateMachine.synchronizeSelection(selectedIndex, itemCount: itemCount)
     }
 
     @discardableResult
@@ -56,6 +73,8 @@ final class GlobalHotkeyMonitor {
         runLoopSource = nil
         stateMachine.reset()
         swallowedKeyCodes.removeAll()
+        navigationColumns = nil
+        searchQueryIsEmpty = true
     }
 
     private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
@@ -73,6 +92,7 @@ final class GlobalHotkeyMonitor {
         }
 
         let input: SwitcherInput?
+        var directAction: SwitcherAction?
         var shouldSuppress = false
         switch (type, keyCode) {
         case (.keyDown, 48) where flags.contains(.maskAlternate) && !hasConflictingModifiers:
@@ -91,6 +111,14 @@ final class GlobalHotkeyMonitor {
         case (.keyDown, 125) where stateMachine.isActive:
             input = .moveDown
             shouldSuppress = true
+        case (.keyDown, 51) where stateMachine.isActive:
+            input = nil
+            directAction = .searchBackspace
+            shouldSuppress = true
+        case (.keyDown, 53) where stateMachine.isActive && !searchQueryIsEmpty:
+            input = nil
+            directAction = .searchCleared
+            shouldSuppress = true
         case (.keyDown, 53) where stateMachine.isActive:
             input = .escape
             shouldSuppress = true
@@ -98,16 +126,34 @@ final class GlobalHotkeyMonitor {
             input = .optionReleased
         default:
             input = nil
+            if type == .keyDown,
+               stateMachine.isActive,
+               !hasConflictingModifiers,
+               let characters = printableCharacters(from: event) {
+                directAction = .searchCharacter(characters)
+                shouldSuppress = true
+            }
         }
 
         if shouldSuppress { swallowedKeyCodes.insert(keyCode) }
+        if let directAction { onAction?(directAction) }
         if let input, let action = stateMachine.handle(
             input,
             itemCount: itemCount,
-            navigationLayout: navigationLayout
+            navigationLayout: navigationLayout,
+            gridColumns: navigationColumns
         ) {
             onAction?(action)
         }
         return shouldSuppress ? nil : Unmanaged.passUnretained(event)
+    }
+
+    private func printableCharacters(from event: CGEvent) -> String? {
+        guard let characters = NSEvent(cgEvent: event)?.charactersIgnoringModifiers,
+              !characters.isEmpty,
+              characters.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) else {
+            return nil
+        }
+        return characters
     }
 }

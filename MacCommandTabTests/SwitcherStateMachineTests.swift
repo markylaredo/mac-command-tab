@@ -56,6 +56,30 @@ final class SwitcherStateMachineTests: XCTestCase {
         XCTAssertNil(machine.handle(.moveDown, itemCount: 5, navigationLayout: .tileGrid))
     }
 
+    func testAdaptiveGridUsesCalculatedColumnCount() {
+        var machine = SwitcherStateMachine()
+        _ = machine.handle(.optionTab(reverse: false), itemCount: 10)
+
+        XCTAssertEqual(
+            machine.handle(.moveDown, itemCount: 10, navigationLayout: .tileGrid, gridColumns: 4),
+            .selectionChanged(5)
+        )
+        XCTAssertEqual(
+            machine.handle(.moveDown, itemCount: 10, navigationLayout: .tileGrid, gridColumns: 4),
+            .selectionChanged(9)
+        )
+    }
+
+    func testEmptySearchResultCanStillCancelOnOptionRelease() {
+        var machine = SwitcherStateMachine()
+        _ = machine.handle(.optionTab(reverse: false), itemCount: 4)
+        machine.synchronizeSelection(nil, itemCount: 0)
+
+        XCTAssertTrue(machine.isActive)
+        XCTAssertEqual(machine.handle(.optionReleased, itemCount: 0), .cancelled)
+        XCTAssertFalse(machine.isActive)
+    }
+
     func testEscapeCancelsWithoutCommit() {
         var machine = SwitcherStateMachine()
         _ = machine.handle(.optionTab(reverse: false), itemCount: 3)
@@ -81,6 +105,16 @@ final class SwitcherStateMachineTests: XCTestCase {
 }
 
 final class SwitcherAppearancePreferenceTests: XCTestCase {
+    func testSwitcherAppearancePersists() {
+        let defaults = UserDefaults.standard
+        let previousValue = defaults.object(forKey: SwitcherAppearance.defaultsKey)
+        defer { restore(previousValue, forKey: SwitcherAppearance.defaultsKey) }
+
+        SwitcherAppearance.windowTitles.save()
+
+        XCTAssertEqual(SwitcherAppearance.saved, .windowTitles)
+    }
+
     func testSelectionEffectPersists() {
         let defaults = UserDefaults.standard
         let previousValue = defaults.object(forKey: SwitcherSelectionEffect.defaultsKey)

@@ -41,6 +41,11 @@
 		A10000000000000000000021 /* PixelateEffect.metal in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* PixelateEffect.metal */; };
 		A10000000000000000000022 /* GlideEffect.metal in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* GlideEffect.metal */; };
 		A10000000000000000000023 /* WindowFrameCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* WindowFrameCacheTests.swift */; };
+		A10000000000000000000024 /* SwitcherAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* SwitcherAppearance.swift */; };
+		A10000000000000000000025 /* SwitcherLayoutCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* SwitcherLayoutCalculator.swift */; };
+		A10000000000000000000026 /* WindowSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* WindowSearch.swift */; };
+		A10000000000000000000027 /* SwitcherLayoutCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* SwitcherLayoutCalculatorTests.swift */; };
+		A10000000000000000000028 /* AdaptiveSwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* AdaptiveSwitcherView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -88,6 +93,11 @@
 		A20000000000000000000020 /* PixelateEffect.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = PixelateEffect.metal; sourceTree = "<group>"; };
 		A20000000000000000000021 /* GlideEffect.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = GlideEffect.metal; sourceTree = "<group>"; };
 		A20000000000000000000022 /* WindowFrameCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowFrameCacheTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000023 /* SwitcherAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitcherAppearance.swift; sourceTree = "<group>"; };
+		A20000000000000000000024 /* SwitcherLayoutCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitcherLayoutCalculator.swift; sourceTree = "<group>"; };
+		A20000000000000000000025 /* WindowSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSearch.swift; sourceTree = "<group>"; };
+		A20000000000000000000026 /* SwitcherLayoutCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitcherLayoutCalculatorTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000027 /* AdaptiveSwitcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveSwitcherView.swift; sourceTree = "<group>"; };
 		A30000000000000000000001 /* MacCommandTab.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacCommandTab.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A30000000000000000000002 /* MacCommandTabTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MacCommandTabTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -169,8 +179,12 @@
 			isa = PBXGroup;
 			children = (
 				A2000000000000000000000A /* SwitcherPanel.swift */,
+				A20000000000000000000027 /* AdaptiveSwitcherView.swift */,
+				A20000000000000000000023 /* SwitcherAppearance.swift */,
+				A20000000000000000000024 /* SwitcherLayoutCalculator.swift */,
 				A2000000000000000000000B /* SwitcherView.swift */,
 				A2000000000000000000000C /* WindowCardView.swift */,
+				A20000000000000000000025 /* WindowSearch.swift */,
 			);
 			path = Switcher;
 			sourceTree = "<group>";
@@ -192,6 +206,7 @@
 				A20000000000000000000010 /* MRUWindowOrderingTests.swift */,
 				A20000000000000000000015 /* WindowPreviewMatcherTests.swift */,
 				A20000000000000000000022 /* WindowFrameCacheTests.swift */,
+				A20000000000000000000026 /* SwitcherLayoutCalculatorTests.swift */,
 			);
 			path = MacCommandTabTests;
 			sourceTree = "<group>";
@@ -375,6 +390,10 @@
 				A1000000000000000000000A /* SwitcherPanel.swift in Sources */,
 				A1000000000000000000000B /* SwitcherView.swift in Sources */,
 				A1000000000000000000000C /* WindowCardView.swift in Sources */,
+				A10000000000000000000024 /* SwitcherAppearance.swift in Sources */,
+				A10000000000000000000025 /* SwitcherLayoutCalculator.swift in Sources */,
+				A10000000000000000000026 /* WindowSearch.swift in Sources */,
+				A10000000000000000000028 /* AdaptiveSwitcherView.swift in Sources */,
 				A1000000000000000000000D /* AccessibilityPermission.swift in Sources */,
 				A1000000000000000000000E /* PermissionsWindowController.swift in Sources */,
 				A10000000000000000000013 /* ScreenCapturePermission.swift in Sources */,
@@ -403,6 +422,7 @@
 				A10000000000000000000010 /* MRUWindowOrderingTests.swift in Sources */,
 				A10000000000000000000016 /* WindowPreviewMatcherTests.swift in Sources */,
 				A10000000000000000000023 /* WindowFrameCacheTests.swift in Sources */,
+				A10000000000000000000027 /* SwitcherLayoutCalculatorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

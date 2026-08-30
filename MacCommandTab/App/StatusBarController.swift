@@ -10,6 +10,7 @@ final class StatusBarController: NSObject {
     private let previewPermissionItem = NSMenuItem(title: "Window Previews: Checking…", action: nil, keyEquivalent: "")
     private let glassItem = NSMenuItem(title: "Glass Background", action: #selector(toggleGlass(_:)), keyEquivalent: "")
     private var presetItems: [SwitcherPreset: NSMenuItem] = [:]
+    private var appearanceItems: [SwitcherAppearance: NSMenuItem] = [:]
     private var themeItems: [SwitcherTheme: NSMenuItem] = [:]
     private var selectionEffectItems: [SwitcherSelectionEffect: NSMenuItem] = [:]
     private var windowEffectItems: [WindowEffect: NSMenuItem] = [:]
@@ -45,6 +46,9 @@ final class StatusBarController: NSObject {
         coordinator.onWindowEffectChanged = { [weak self] effect in
             self?.updateWindowEffect(effect)
         }
+        coordinator.onAppearanceChanged = { [weak self] appearance in
+            self?.updateAppearanceSelection(appearance)
+        }
     }
 
     private func configureStatusItem() {
@@ -61,7 +65,7 @@ final class StatusBarController: NSObject {
         let menu = NSMenu()
         menu.addItem(withTitle: "Open MacCommandTab…", action: #selector(openMacCommandTab), keyEquivalent: "")
         menu.addItem(withTitle: "Refresh Window List", action: #selector(refreshWindows), keyEquivalent: "r")
-        menu.addItem(makePresetMenu())
+        menu.addItem(makeAppearanceMenu())
         menu.addItem(makeThemeMenu())
         configureGlassItem()
         menu.addItem(glassItem)
@@ -104,6 +108,34 @@ final class StatusBarController: NSObject {
     private func updatePresetSelection(_ selectedPreset: SwitcherPreset) {
         for (preset, item) in presetItems {
             item.state = preset == selectedPreset ? .on : .off
+        }
+    }
+
+    private func makeAppearanceMenu() -> NSMenuItem {
+        let item = NSMenuItem(title: "Switcher Appearance", action: nil, keyEquivalent: "")
+        let submenu = NSMenu(title: "Switcher Appearance")
+
+        for appearance in SwitcherAppearance.allCases {
+            let appearanceItem = NSMenuItem(
+                title: appearance.title,
+                action: #selector(selectAppearance(_:)),
+                keyEquivalent: ""
+            )
+            appearanceItem.toolTip = appearance.subtitle
+            appearanceItem.representedObject = appearance.rawValue
+            appearanceItem.target = self
+            appearanceItems[appearance] = appearanceItem
+            submenu.addItem(appearanceItem)
+        }
+
+        item.submenu = submenu
+        updateAppearanceSelection(coordinator.currentAppearance)
+        return item
+    }
+
+    private func updateAppearanceSelection(_ selectedAppearance: SwitcherAppearance) {
+        for (appearance, item) in appearanceItems {
+            item.state = appearance == selectedAppearance ? .on : .off
         }
     }
 
@@ -224,6 +256,12 @@ final class StatusBarController: NSObject {
         guard let rawValue = sender.representedObject as? String,
               let preset = SwitcherPreset(rawValue: rawValue) else { return }
         coordinator.setPreset(preset)
+    }
+
+    @objc private func selectAppearance(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String,
+              let appearance = SwitcherAppearance(rawValue: rawValue) else { return }
+        coordinator.setAppearance(appearance)
     }
 
     @objc private func selectTheme(_ sender: NSMenuItem) {

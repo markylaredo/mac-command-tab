@@ -352,7 +352,7 @@ struct CircleSelectionCard: View {
     }
 }
 
-private struct SelectionEffectOverlay: View {
+struct SelectionEffectOverlay: View {
     let effect: SwitcherSelectionEffect
     let theme: SwitcherTheme
     let cornerRadius: CGFloat
@@ -489,7 +489,7 @@ private struct EmberBurnSelectionEffect: View {
     }
 }
 
-private struct ApplicationIcon: View {
+struct ApplicationIcon: View {
     let window: WindowInfo
     let size: CGFloat
 
