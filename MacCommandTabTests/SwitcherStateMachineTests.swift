@@ -94,17 +94,46 @@ final class SwitcherStateMachineTests: XCTestCase {
         XCTAssertFalse(machine.isActive)
     }
 
+    func testEnterCommitsSelection() {
+        var machine = SwitcherStateMachine()
+        _ = machine.handle(.optionTab(reverse: false), itemCount: 3)
+        XCTAssertEqual(machine.handle(.enter, itemCount: 3), .committed(selection: 1))
+        XCTAssertFalse(machine.isActive)
+    }
+
+    func testNoWindowsOpensCancelableEmptySession() {
+        var machine = SwitcherStateMachine()
+        XCTAssertEqual(machine.handle(.optionTab(reverse: false), itemCount: 0), .opened(selection: 0))
+        XCTAssertTrue(machine.isActive)
+        XCTAssertEqual(machine.handle(.escape, itemCount: 0), .cancelled)
+    }
+
     func testInvalidEventOrderDoesNothing() {
         var machine = SwitcherStateMachine()
         XCTAssertNil(machine.handle(.tab(reverse: false), itemCount: 3))
         XCTAssertNil(machine.handle(.optionReleased, itemCount: 3))
         XCTAssertNil(machine.handle(.escape, itemCount: 3))
-        XCTAssertNil(machine.handle(.optionTab(reverse: false), itemCount: 0))
         XCTAssertFalse(machine.isActive)
     }
 }
 
 final class SwitcherAppearancePreferenceTests: XCTestCase {
+    func testPreviewModeDefaultsToThumbnailAndPersistsLiveSelection() {
+        let defaults = UserDefaults.standard
+        let previousValue = defaults.object(forKey: PreviewMode.defaultsKey)
+        defer { restore(previousValue, forKey: PreviewMode.defaultsKey) }
+
+        defaults.removeObject(forKey: PreviewMode.defaultsKey)
+        XCTAssertEqual(PreviewMode.saved, .thumbnail)
+
+        PreviewMode.live.save()
+        XCTAssertEqual(PreviewMode.saved, .live)
+    }
+
+    func testPreviewModeLabelsMatchSettingsCopy() {
+        XCTAssertEqual(PreviewMode.allCases.map(\.title), ["Thumbnail", "Live Preview"])
+    }
+
     func testSwitcherAppearancePersists() {
         let defaults = UserDefaults.standard
         let previousValue = defaults.object(forKey: SwitcherAppearance.defaultsKey)
@@ -143,5 +172,22 @@ final class SwitcherAppearancePreferenceTests: XCTestCase {
         } else {
             UserDefaults.standard.removeObject(forKey: key)
         }
+    }
+}
+
+final class ScreenCapturePermissionSetupStateTests: XCTestCase {
+    func testPermissionActionsDescribeEachRecoveryStep() {
+        XCTAssertEqual(
+            ScreenCapturePermission.SetupState.notRequested.actionTitle,
+            "Allow Window Previews"
+        )
+        XCTAssertEqual(
+            ScreenCapturePermission.SetupState.waitingForRelaunch.actionTitle,
+            "Relaunch to Finish"
+        )
+        XCTAssertEqual(
+            ScreenCapturePermission.SetupState.repairAvailable.actionTitle,
+            "Reset & Request Again"
+        )
     }
 }

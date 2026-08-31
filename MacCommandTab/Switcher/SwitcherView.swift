@@ -64,9 +64,9 @@ enum SwitcherTheme: String, CaseIterable, Identifiable, Sendable {
 
     var subtitle: String {
         switch self {
-        case .game: "Tactical HUD and targeting corners"
-        case .classic: "Native macOS material and focus ring"
-        case .modern: "Midnight glass with cyan-violet glow"
+        case .game: "Native glass with a warm amber focus accent"
+        case .classic: "Neutral macOS material and system accent"
+        case .modern: "Native glass with a cool blue focus accent"
         }
     }
 
@@ -142,10 +142,10 @@ enum SwitcherSelectionEffect: String, CaseIterable, Identifiable, Sendable {
 
     var subtitle: String {
         switch self {
-        case .focusLift: "Spring lift with a clean expanding focus ring"
-        case .neonSweep: "A luminous trace travels around the selected item"
-        case .emberBurn: "A hot edge sheds rising sparks"
-        case .none: "Keep only the selected border"
+        case .focusLift: "Clean elevation with a soft neutral shadow"
+        case .neonSweep: "A restrained cool glow behind the selected window"
+        case .emberBurn: "A restrained warm glow behind the selected window"
+        case .none: "Use brightness and elevation only"
         }
     }
 
@@ -174,11 +174,43 @@ enum SwitcherGlassPreference {
     }
 }
 
+enum PreviewMode: String, CaseIterable, Identifiable, Sendable {
+    case thumbnail
+    case live
+
+    static let defaultsKey = "previewMode"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .thumbnail: "Thumbnail"
+        case .live: "Live Preview"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .thumbnail: "Faster and uses fewer system resources."
+        case .live: "Shows windows updating in real time."
+        }
+    }
+
+    static var saved: PreviewMode {
+        guard let rawValue = UserDefaults.standard.string(forKey: defaultsKey),
+              let mode = PreviewMode(rawValue: rawValue) else { return .thumbnail }
+        return mode
+    }
+
+    func save() {
+        UserDefaults.standard.set(rawValue, forKey: Self.defaultsKey)
+    }
+}
+
 @MainActor
 final class SwitcherViewModel: ObservableObject {
     @Published var windows: [WindowInfo] = []
     @Published var selectedIndex = 0
-    @Published var previews: [WindowID: WindowPreview] = [:]
     @Published var preset = SwitcherPreset.saved
     @Published var theme = SwitcherTheme.saved
     @Published var glassEnabled = SwitcherGlassPreference.saved
@@ -186,4 +218,5 @@ final class SwitcherViewModel: ObservableObject {
     @Published var appearance = SwitcherAppearance.saved
     @Published var layout = SwitcherLayout.empty
     @Published var searchQuery = ""
+    @Published var previews: [WindowID: WindowPreview] = [:]
 }

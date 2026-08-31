@@ -11,7 +11,7 @@ enum SwitcherAppearance: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .thumbnails: "Thumbnails"
+        case .thumbnails: "Window Tiles"
         case .appIcons: "App Icons"
         case .windowTitles: "Window Titles"
         }
@@ -19,7 +19,7 @@ enum SwitcherAppearance: String, CaseIterable, Identifiable, Sendable {
 
     var subtitle: String {
         switch self {
-        case .thumbnails: "Adaptive live window previews"
+        case .thumbnails: "Live window previews with titles"
         case .appIcons: "Large icons for every individual window"
         case .windowTitles: "Compact list for many windows"
         }

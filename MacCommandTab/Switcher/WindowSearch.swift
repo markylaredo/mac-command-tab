@@ -13,10 +13,21 @@ struct WindowSearch: Sendable {
     ) -> [Element] {
         let query = normalized(query)
         guard !query.isEmpty else { return elements }
-        return elements.filter {
-            applicationName($0).localizedCaseInsensitiveContains(query)
-                || title($0).localizedCaseInsensitiveContains(query)
-        }
+        return elements.enumerated().compactMap { offset, element -> (Element, Int, Int)? in
+            let app = normalized(applicationName(element))
+            let windowTitle = normalized(title(element))
+            let rank: Int
+            if app == query { rank = 0 }
+            else if app.hasPrefix(query) { rank = 1 }
+            else if windowTitle == query { rank = 2 }
+            else if windowTitle.hasPrefix(query) { rank = 3 }
+            else if app.localizedCaseInsensitiveContains(query) { rank = 4 }
+            else if windowTitle.localizedCaseInsensitiveContains(query) { rank = 5 }
+            else { return nil }
+            return (element, rank, offset)
+        }.sorted {
+            $0.1 == $1.1 ? $0.2 < $1.2 : $0.1 < $1.1
+        }.map(\.0)
     }
 
     static func filter(_ windows: [WindowInfo], query: String) -> [WindowInfo] {

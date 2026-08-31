@@ -48,6 +48,35 @@ final class SwitcherLayoutCalculatorTests: XCTestCase {
         }
     }
 
+    func testCompactThumbnailSetUsesOneContentSizedRow() {
+        let layout = calculator.calculateLayout(
+            itemCount: 5,
+            availableSize: CGSize(width: 1_920, height: 1_080),
+            appearance: .thumbnails
+        )
+
+        XCTAssertEqual(layout.rows, 1)
+        XCTAssertEqual(layout.columns, 5)
+        XCTAssertLessThan(layout.panelSize.width, 1_920 * 0.75)
+    }
+
+    func testSearchDoesNotShiftStableSwitcherChromeOrCardGeometry() {
+        let normal = calculator.calculateLayout(
+            itemCount: 5,
+            availableSize: CGSize(width: 1_920, height: 1_080),
+            appearance: .thumbnails
+        )
+        let searching = calculator.calculateLayout(
+            itemCount: 5,
+            availableSize: CGSize(width: 1_920, height: 1_080),
+            appearance: .thumbnails,
+            searchActive: true
+        )
+
+        XCTAssertEqual(searching.itemSize, normal.itemSize)
+        XCTAssertEqual(searching.panelSize.height, normal.panelSize.height)
+    }
+
     func testEmptyResultsUseCompactPanel() {
         let layout = calculator.calculateLayout(
             itemCount: 0,
@@ -55,7 +84,7 @@ final class SwitcherLayoutCalculatorTests: XCTestCase {
             appearance: .thumbnails
         )
         XCTAssertEqual(layout.rows, 0)
-        XCTAssertLessThanOrEqual(layout.panelSize.height, 100)
+        XCTAssertLessThanOrEqual(layout.panelSize.height, 180)
     }
 
     func testThumbnailItemHeightIncludesPreviewSpacingAndMetadata() {
@@ -66,11 +95,11 @@ final class SwitcherLayoutCalculatorTests: XCTestCase {
         )
 
         XCTAssertEqual(layout.itemSize.width, layout.previewSize.width)
-        XCTAssertEqual(layout.itemSize.height, layout.previewSize.height + 8 + 44)
-        XCTAssertEqual(layout.verticalSpacing, 16)
+        XCTAssertEqual(layout.itemSize.height, layout.previewSize.height + 8 + 40)
+        XCTAssertEqual(layout.verticalSpacing, 14)
         XCTAssertEqual(
             layout.panelSize.height,
-            42 + 20
+            48 + 34 + 32
                 + CGFloat(layout.rows) * layout.itemSize.height
                 + CGFloat(layout.rows - 1) * layout.verticalSpacing
         )
@@ -88,6 +117,42 @@ final class SwitcherLayoutCalculatorTests: XCTestCase {
             XCTAssertEqual(layout.previewSize, layout.itemSize)
             XCTAssertGreaterThan(layout.itemSize.height, 0)
         }
+    }
+
+    func testAccessibilityPortraitWindowAspectFitsInsideStablePreviewStage() {
+        let stageSize = CGSize(width: 196, height: 118)
+        let fittedSize = WindowIdentityLayout.aspectFit(
+            sourceSize: CGSize(width: 600, height: 900),
+            in: stageSize
+        )
+
+        XCTAssertEqual(fittedSize.height, stageSize.height - 14, accuracy: 0.001)
+        XCTAssertLessThan(fittedSize.width, stageSize.width)
+        XCTAssertLessThanOrEqual(fittedSize.width, stageSize.width - 20)
+        XCTAssertLessThanOrEqual(fittedSize.height, stageSize.height - 14)
+    }
+
+    func testEightThumbnailWindowsPreferOneFocusRail() {
+        let layout = calculator.calculateLayout(
+            itemCount: 8,
+            availableSize: CGSize(width: 1_440, height: 900),
+            appearance: .thumbnails
+        )
+
+        XCTAssertEqual(layout.columns, 8)
+        XCTAssertEqual(layout.rows, 1)
+    }
+
+    func testThumbnailRowsBalanceInsteadOfLeavingSingleOrphan() {
+        let layout = calculator.calculateLayout(
+            itemCount: 13,
+            availableSize: CGSize(width: 1_440, height: 900),
+            appearance: .thumbnails
+        )
+        let finalRowCount = 13 % layout.columns
+
+        XCTAssertNotEqual(finalRowCount, 1)
+        XCTAssertGreaterThanOrEqual(finalRowCount, layout.columns - 1)
     }
 }
 
@@ -114,6 +179,24 @@ final class WindowSearchTests: XCTestCase {
     func testNoResultsAndClearQuery() {
         XCTAssertTrue(search("missing").isEmpty)
         XCTAssertEqual(search("   "), items)
+    }
+
+    func testRanksExactAndPrefixApplicationMatchesBeforeTitlesAndSubstrings() {
+        let ranked = [
+            Item(id: 1, app: "Terminal", title: "Safari notes"),
+            Item(id: 2, app: "Safari", title: "Documentation"),
+            Item(id: 3, app: "Safari Technology Preview", title: "Start"),
+            Item(id: 4, app: "Notes", title: "Safari")
+        ]
+
+        let results = WindowSearch.filter(
+            ranked,
+            query: "Safari",
+            applicationName: \Item.app,
+            title: \Item.title
+        )
+
+        XCTAssertEqual(results.map(\.id), [2, 3, 4, 1])
     }
 
     func testBackspaceRemovesOneCharacter() {

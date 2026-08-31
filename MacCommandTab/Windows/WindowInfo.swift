@@ -14,6 +14,9 @@ struct WindowInfo: Identifiable, @unchecked Sendable {
     let icon: NSImage?
     let accessibilityElement: AXUIElement
     let isMinimized: Bool
+    let isFullscreen: Bool
+    let isApplicationHidden: Bool
+    let isFocused: Bool
     let frame: CGRect
 }
 
@@ -22,4 +25,5 @@ struct ApplicationSnapshot: @unchecked Sendable {
     let name: String
     let bundleIdentifier: String?
     let icon: NSImage?
+    let isHidden: Bool
 }

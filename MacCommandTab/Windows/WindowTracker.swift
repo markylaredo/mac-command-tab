@@ -22,6 +22,30 @@ struct MRUWindowOrdering: Sendable {
     }
 }
 
+struct WindowTrackerRefreshGeneration: Sendable {
+    private(set) var value: UInt = 0
+    private(set) var isRunning = false
+
+    mutating func start() {
+        value &+= 1
+        isRunning = true
+    }
+
+    mutating func stop() {
+        value &+= 1
+        isRunning = false
+    }
+
+    mutating func scheduleRefresh() -> UInt {
+        value &+= 1
+        return value
+    }
+
+    func accepts(_ refreshGeneration: UInt) -> Bool {
+        isRunning && refreshGeneration == value
+    }
+}
+
 @MainActor
 final class WindowTracker {
     private let discovery = WindowDiscovery()
@@ -30,10 +54,12 @@ final class WindowTracker {
     private var observers: [pid_t: AXObserver] = [:]
     private var workspaceObservers: [NSObjectProtocol] = []
     private var iconCache: [pid_t: NSImage] = [:]
+    private var refreshGeneration = WindowTrackerRefreshGeneration()
     private(set) var windows: [WindowInfo] = []
     var onWindowsChanged: (([WindowInfo]) -> Void)?
 
     func start() {
+        refreshGeneration.start()
         let center = NSWorkspace.shared.notificationCenter
         workspaceObservers = [
             center.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
@@ -55,6 +81,7 @@ final class WindowTracker {
     }
 
     func stop() {
+        refreshGeneration.stop()
         let center = NSWorkspace.shared.notificationCenter
         workspaceObservers.forEach(center.removeObserver)
         workspaceObservers.removeAll()
@@ -65,13 +92,15 @@ final class WindowTracker {
     }
 
     func refresh(completion: (@MainActor @Sendable () -> Void)? = nil) {
+        guard refreshGeneration.isRunning else { return }
+        let generation = refreshGeneration.scheduleRefresh()
         let applications = applicationSnapshots()
         let discovery = discovery
         discoveryQueue.async { [weak self] in
             let discovered = discovery.discover(applications: applications)
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
-                    guard let self else { return }
+                    guard let self, self.refreshGeneration.accepts(generation) else { return }
                     self.windows = self.ordering.order(discovered)
                     self.onWindowsChanged?(self.windows)
                     completion?()
@@ -85,15 +114,29 @@ final class WindowTracker {
             guard app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
                   app.activationPolicy == .regular,
                   !app.isTerminated else { return nil }
-            let icon = iconCache[app.processIdentifier] ?? app.icon
+            let icon = iconCache[app.processIdentifier] ?? bestApplicationIcon(for: app)
             if let icon { iconCache[app.processIdentifier] = icon }
             return ApplicationSnapshot(
                 pid: app.processIdentifier,
                 name: app.localizedName ?? "Application",
                 bundleIdentifier: app.bundleIdentifier,
-                icon: icon
+                icon: icon,
+                isHidden: app.isHidden
             )
         }
+    }
+
+    private func bestApplicationIcon(for application: NSRunningApplication) -> NSImage? {
+        var candidates: [NSImage] = []
+        if let icon = application.icon { candidates.append(icon) }
+        if let bundleURL = application.bundleURL {
+            candidates.append(NSWorkspace.shared.icon(forFile: bundleURL.path))
+        }
+        return candidates.max { nativePixelDimension(of: $0) < nativePixelDimension(of: $1) }
+    }
+
+    private func nativePixelDimension(of image: NSImage) -> Int {
+        image.representations.map { max($0.pixelsWide, $0.pixelsHigh) }.max() ?? 0
     }
 
     private func rebuildObservers() {

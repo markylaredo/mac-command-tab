@@ -7,6 +7,7 @@ enum SwitcherInput: Equatable, Sendable {
     case moveNext
     case moveUp
     case moveDown
+    case enter
     case escape
     case optionReleased
 }
@@ -39,8 +40,12 @@ struct SwitcherStateMachine: Sendable {
         gridColumns: Int? = nil
     ) -> SwitcherAction? {
         if !sessionActive {
-            guard itemCount > 0 else { return nil }
             guard case let .optionTab(reverse) = input else { return nil }
+            guard itemCount > 0 else {
+                sessionActive = true
+                selection = nil
+                return .opened(selection: 0)
+            }
             let initialSelection = itemCount == 1 ? 0 : wrappedIndex(reverse ? -1 : 1, count: itemCount)
             sessionActive = true
             selection = initialSelection
@@ -69,6 +74,11 @@ struct SwitcherStateMachine: Sendable {
             return moveVertically(by: -1, itemCount: itemCount, navigationLayout: navigationLayout, gridColumns: gridColumns)
         case .moveDown:
             return moveVertically(by: 1, itemCount: itemCount, navigationLayout: navigationLayout, gridColumns: gridColumns)
+        case .enter:
+            guard let selected = selection else { return nil }
+            sessionActive = false
+            selection = nil
+            return .committed(selection: selected)
         case .escape:
             sessionActive = false
             selection = nil

@@ -1,26 +1,36 @@
 import AppKit
+import ServiceManagement
 
 @MainActor
 final class PermissionsWindowController: NSWindowController {
     private let accessibilityStatusLabel = NSTextField(labelWithString: "")
     private let screenCaptureStatusLabel = NSTextField(labelWithString: "")
-    private weak var screenCaptureActionButton: NSButton?
+    private let screenCaptureIdentityLabel = NSTextField(wrappingLabelWithString: "")
+    private let previewModeControl = NSSegmentedControl()
+    private let previewModeDescriptionLabel = NSTextField(wrappingLabelWithString: "")
+    private let accessibilityActionButton = NSButton(title: "Open System Settings…", target: nil, action: nil)
+    private let screenCaptureActionButton = NSButton(title: "Allow Window Previews", target: nil, action: nil)
+    private let feedbackLabel = NSTextField(labelWithString: "")
+    private let startAtLoginCheckbox = NSButton(
+        checkboxWithTitle: "Start MacCommandTab at login",
+        target: nil,
+        action: nil
+    )
+    private let loginItemStatusLabel = NSTextField(wrappingLabelWithString: "")
     private var accessibilityCheckTask: Task<Void, Never>?
-    private var screenCaptureRestartSuggested = false
-    private let effectsPopUp = NSPopUpButton(frame: .zero, pullsDown: false)
-    private let effectsStatusLabel = NSTextField(labelWithString: "Ready")
+    private var screenCaptureRepairTask: Task<Void, Never>?
     var onAccessibilityPermissionChanged: ((Bool) -> Void)?
     var onScreenCapturePermissionChanged: ((Bool) -> Void)?
-    var onPreviewEffect: ((WindowEffect) -> Bool)?
+    var onPreviewModeChanged: ((PreviewMode) -> Void)?
 
     init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 520),
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 640),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
-        window.title = "MacCommandTab Permissions"
+        window.title = "\(ScreenCapturePermission.applicationName) Settings"
         window.isReleasedWhenClosed = false
         window.center()
         super.init(window: window)
@@ -31,6 +41,7 @@ final class PermissionsWindowController: NSWindowController {
 
     deinit {
         accessibilityCheckTask?.cancel()
+        screenCaptureRepairTask?.cancel()
     }
 
     func show() {
@@ -41,47 +52,199 @@ final class PermissionsWindowController: NSWindowController {
     }
 
     func updateStatus(notify: Bool = true) {
-        let accessibilityGranted = AccessibilityPermission.isGranted
+        let granted = AccessibilityPermission.isGranted
+        configureStatus(granted: granted)
         let screenCaptureGranted = ScreenCapturePermission.isGranted
-        configure(accessibilityStatusLabel, granted: accessibilityGranted)
-        updateScreenCaptureStatus(granted: screenCaptureGranted)
+        configureScreenCaptureStatus(granted: screenCaptureGranted)
+        configureLoginItemStatus()
         if notify {
-            onAccessibilityPermissionChanged?(accessibilityGranted)
+            onAccessibilityPermissionChanged?(granted)
             onScreenCapturePermissionChanged?(screenCaptureGranted)
         }
     }
 
+    func setPreviewMode(_ mode: PreviewMode) {
+        guard let index = PreviewMode.allCases.firstIndex(of: mode) else { return }
+        previewModeControl.selectedSegment = index
+        previewModeDescriptionLabel.stringValue = mode.description
+    }
+
     private func makeContentView() -> NSView {
-        let title = NSTextField(labelWithString: "Switch windows at a glance")
+        let title = NSTextField(labelWithString: ScreenCapturePermission.applicationName)
         title.font = .systemFont(ofSize: 22, weight: .semibold)
         title.alignment = .center
 
-        let message = NSTextField(wrappingLabelWithString: "Accessibility enables Option+Tab and exact window activation. Screen Recording adds live window previews.")
+        let message = NSTextField(
+            wrappingLabelWithString: "Fast window switching, configured for this Mac."
+        )
         message.font = .systemFont(ofSize: 14)
         message.alignment = .center
         message.textColor = .secondaryLabelColor
         message.maximumNumberOfLines = 3
 
-        let accessibilityRow = permissionRow(
-            title: "Accessibility",
-            statusLabel: accessibilityStatusLabel,
-            actionTitle: "Check Permission",
-            action: #selector(checkAccessibilityPermission),
-            settingsAction: #selector(openAccessibilitySettings)
-        )
-        let screenCaptureRow = permissionRow(
-            title: "Window Previews",
-            statusLabel: screenCaptureStatusLabel,
-            actionTitle: "Enable Previews",
-            action: #selector(requestScreenCapturePermission),
-            settingsAction: #selector(openScreenCaptureSettings)
-        )
-        screenCaptureActionButton = screenCaptureRow.actionButton
-        let effectsPreview = effectsPreviewSection()
+        let generalHeading = NSTextField(labelWithString: "General")
+        generalHeading.font = .systemFont(ofSize: 15, weight: .semibold)
 
-        let stack = NSStackView(views: [title, message, accessibilityRow.view, screenCaptureRow.view, effectsPreview])
+        startAtLoginCheckbox.target = self
+        startAtLoginCheckbox.action = #selector(toggleStartAtLogin)
+        startAtLoginCheckbox.setAccessibilityHelp(
+            "Open MacCommandTab automatically after you sign in to your Mac."
+        )
+
+        let loginItemSettingsButton = NSButton(
+            title: "Login Items…",
+            target: self,
+            action: #selector(openLoginItemSettings)
+        )
+        loginItemSettingsButton.bezelStyle = .rounded
+
+        let loginItemRow = NSStackView(
+            views: [startAtLoginCheckbox, NSView(), loginItemSettingsButton]
+        )
+        loginItemRow.orientation = .horizontal
+        loginItemRow.spacing = 10
+        loginItemRow.alignment = .centerY
+
+        loginItemStatusLabel.font = .systemFont(ofSize: 11.5)
+        loginItemStatusLabel.textColor = .secondaryLabelColor
+        loginItemStatusLabel.maximumNumberOfLines = 2
+
+        let generalSection = NSStackView(
+            views: [generalHeading, loginItemRow, loginItemStatusLabel]
+        )
+        generalSection.orientation = .vertical
+        generalSection.spacing = 8
+        generalSection.alignment = .leading
+        generalSection.widthAnchor.constraint(equalToConstant: 434).isActive = true
+        loginItemRow.widthAnchor.constraint(equalTo: generalSection.widthAnchor).isActive = true
+        configureLoginItemStatus()
+
+        let heading = NSTextField(labelWithString: "Accessibility")
+        heading.font = .systemFont(ofSize: 14, weight: .semibold)
+        accessibilityStatusLabel.font = .systemFont(ofSize: 12, weight: .medium)
+
+        let accessibilityHelp = NSTextField(
+            wrappingLabelWithString: "Required to discover and activate the window you select."
+        )
+        accessibilityHelp.font = .systemFont(ofSize: 11.5)
+        accessibilityHelp.textColor = .secondaryLabelColor
+        accessibilityHelp.maximumNumberOfLines = 2
+
+        let labels = NSStackView(views: [heading, accessibilityHelp, accessibilityStatusLabel])
+        labels.orientation = .vertical
+        labels.spacing = 3
+        labels.alignment = .leading
+
+        accessibilityActionButton.target = self
+        accessibilityActionButton.action = #selector(openAccessibilitySettings)
+        accessibilityActionButton.bezelStyle = .rounded
+
+        let permissionRow = NSStackView(views: [labels, NSView(), accessibilityActionButton])
+        permissionRow.orientation = .horizontal
+        permissionRow.spacing = 10
+        permissionRow.alignment = .centerY
+        permissionRow.widthAnchor.constraint(equalToConstant: 414).isActive = true
+
+        let previewSectionHeading = NSTextField(labelWithString: "Window Preview")
+        previewSectionHeading.font = .systemFont(ofSize: 15, weight: .semibold)
+
+        let previewModeHeading = NSTextField(labelWithString: "Preview style")
+        previewModeHeading.font = .systemFont(ofSize: 13, weight: .medium)
+        let previewModeHelp = NSTextField(
+            labelWithString: "Choose between efficient snapshots and real-time window updates."
+        )
+        previewModeHelp.font = .systemFont(ofSize: 11.5)
+        previewModeHelp.textColor = .secondaryLabelColor
+
+        previewModeControl.segmentCount = PreviewMode.allCases.count
+        for (index, mode) in PreviewMode.allCases.enumerated() {
+            previewModeControl.setLabel(mode.title, forSegment: index)
+            previewModeControl.setWidth(150, forSegment: index)
+        }
+        previewModeControl.trackingMode = .selectOne
+        previewModeControl.segmentStyle = .rounded
+        previewModeControl.target = self
+        previewModeControl.action = #selector(changePreviewMode)
+        previewModeControl.setAccessibilityLabel("Preview Mode")
+        setPreviewMode(PreviewMode.saved)
+
+        previewModeDescriptionLabel.font = .systemFont(ofSize: 11.5)
+        previewModeDescriptionLabel.textColor = .secondaryLabelColor
+        previewModeDescriptionLabel.maximumNumberOfLines = 2
+
+        let previewHeading = NSTextField(labelWithString: "Window previews")
+        previewHeading.font = .systemFont(ofSize: 13, weight: .medium)
+        screenCaptureStatusLabel.font = .systemFont(ofSize: 12, weight: .medium)
+        screenCaptureIdentityLabel.font = .systemFont(ofSize: 10.5)
+        screenCaptureIdentityLabel.textColor = .tertiaryLabelColor
+        screenCaptureIdentityLabel.maximumNumberOfLines = 3
+        let screenCaptureHelp = NSTextField(
+            wrappingLabelWithString: "Screen Recording permission is used only to show open windows inside the switcher."
+        )
+        screenCaptureHelp.font = .systemFont(ofSize: 11.5)
+        screenCaptureHelp.textColor = .secondaryLabelColor
+        let previewLabels = NSStackView(
+            views: [
+                previewHeading,
+                screenCaptureHelp,
+                screenCaptureStatusLabel,
+                screenCaptureIdentityLabel
+            ]
+        )
+        previewLabels.orientation = .vertical
+        previewLabels.spacing = 3
+        previewLabels.alignment = .leading
+
+        screenCaptureActionButton.target = self
+        screenCaptureActionButton.action = #selector(requestScreenCapturePermission)
+        screenCaptureActionButton.bezelStyle = .rounded
+        let previewPermissionRow = NSStackView(
+            views: [previewLabels, NSView(), screenCaptureActionButton]
+        )
+        previewPermissionRow.orientation = .horizontal
+        previewPermissionRow.spacing = 10
+        previewPermissionRow.alignment = .centerY
+        previewPermissionRow.widthAnchor.constraint(equalToConstant: 434).isActive = true
+
+        let previewSection = NSStackView(
+            views: [
+                previewSectionHeading,
+                previewModeHeading,
+                previewModeHelp,
+                previewModeControl,
+                previewModeDescriptionLabel
+            ]
+        )
+        previewSection.orientation = .vertical
+        previewSection.spacing = 8
+        previewSection.alignment = .leading
+        previewSection.widthAnchor.constraint(equalToConstant: 434).isActive = true
+
+        let permissionsHeading = NSTextField(labelWithString: "Permissions")
+        permissionsHeading.font = .systemFont(ofSize: 15, weight: .semibold)
+        let permissionsHelp = NSTextField(
+            wrappingLabelWithString: "MacCommandTab needs access to switch windows and display their previews."
+        )
+        permissionsHelp.font = .systemFont(ofSize: 11.5)
+        permissionsHelp.textColor = .secondaryLabelColor
+        let permissionsSection = NSStackView(
+            views: [permissionsHeading, permissionsHelp, permissionRow, previewPermissionRow]
+        )
+        permissionsSection.orientation = .vertical
+        permissionsSection.spacing = 10
+        permissionsSection.alignment = .leading
+        permissionsSection.setCustomSpacing(14, after: permissionsHelp)
+        permissionsSection.widthAnchor.constraint(equalToConstant: 434).isActive = true
+
+        feedbackLabel.font = .systemFont(ofSize: 11.5, weight: .medium)
+        feedbackLabel.textColor = .systemGreen
+        feedbackLabel.alignment = .center
+
+        let stack = NSStackView(
+            views: [title, message, generalSection, previewSection, permissionsSection, feedbackLabel]
+        )
         stack.orientation = .vertical
-        stack.spacing = 18
+        stack.spacing = 20
         stack.alignment = .centerX
         stack.translatesAutoresizingMaskIntoConstraints = false
 
@@ -97,97 +260,126 @@ final class PermissionsWindowController: NSWindowController {
         return effect
     }
 
-    private func effectsPreviewSection() -> NSView {
-        let heading = NSTextField(labelWithString: "WINDOW EFFECTS LAB")
-        heading.font = .monospacedSystemFont(ofSize: 11, weight: .bold)
-        heading.textColor = .systemCyan
-
-        let caption = NSTextField(labelWithString: "Preview the GPU transition on a sample window. No application window is changed.")
-        caption.font = .systemFont(ofSize: 12)
-        caption.textColor = .secondaryLabelColor
-        caption.maximumNumberOfLines = 2
-
-        for effect in WindowEffect.allCases where effect != .none {
-            effectsPopUp.addItem(withTitle: effect.title)
-            effectsPopUp.lastItem?.representedObject = effect.rawValue
-        }
-        effectsPopUp.selectItem(withTitle: WindowEffect.glide.title)
-
-        let previewButton = NSButton(title: "Preview Effect", target: self, action: #selector(previewSelectedEffect))
-        previewButton.bezelStyle = .rounded
-        previewButton.keyEquivalent = ""
-
-        effectsStatusLabel.font = .monospacedSystemFont(ofSize: 10, weight: .medium)
-        effectsStatusLabel.textColor = .tertiaryLabelColor
-
-        let controls = NSStackView(views: [effectsPopUp, previewButton, NSView(), effectsStatusLabel])
-        controls.orientation = .horizontal
-        controls.spacing = 10
-        controls.alignment = .centerY
-
-        let stack = NSStackView(views: [heading, caption, controls])
-        stack.orientation = .vertical
-        stack.spacing = 8
-        stack.alignment = .leading
-        stack.translatesAutoresizingMaskIntoConstraints = false
-
-        let box = NSBox()
-        box.boxType = .custom
-        box.titlePosition = .noTitle
-        box.cornerRadius = 12
-        box.borderWidth = 1
-        box.borderColor = NSColor.systemCyan.withAlphaComponent(0.24)
-        box.fillColor = NSColor.controlBackgroundColor.withAlphaComponent(0.55)
-        box.widthAnchor.constraint(equalToConstant: 444).isActive = true
-        box.heightAnchor.constraint(equalToConstant: 120).isActive = true
-        box.contentView?.addSubview(stack)
-        if let contentView = box.contentView {
-            NSLayoutConstraint.activate([
-                stack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-                stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-                stack.centerYAnchor.constraint(equalTo: contentView.centerYAnchor)
-            ])
-        }
-        return box
+    private func configureStatus(granted: Bool) {
+        accessibilityStatusLabel.stringValue = granted ? "✓ Granted" : "Required"
+        accessibilityStatusLabel.textColor = granted ? .systemGreen : .secondaryLabelColor
+        accessibilityActionButton.title = granted ? "Open System Settings…" : "Grant Access…"
+        accessibilityStatusLabel.toolTip = granted
+            ? nil
+            : "If MacCommandTab is already enabled, repair its stale development-build entry in System Settings."
     }
 
-    private func permissionRow(
-        title: String,
-        statusLabel: NSTextField,
-        actionTitle: String,
-        action: Selector,
-        settingsAction: Selector
-    ) -> (view: NSView, actionButton: NSButton) {
-        let heading = NSTextField(labelWithString: title)
-        heading.font = .systemFont(ofSize: 14, weight: .semibold)
-        statusLabel.font = .systemFont(ofSize: 12, weight: .medium)
+    private func configureScreenCaptureStatus(granted: Bool) {
+        if granted {
+            screenCaptureStatusLabel.stringValue = "✓ Granted"
+            screenCaptureStatusLabel.textColor = .systemGreen
+            screenCaptureIdentityLabel.stringValue = ""
+            screenCaptureActionButton.title = "Open System Settings…"
+            return
+        }
 
-        let labels = NSStackView(views: [heading, statusLabel])
-        labels.orientation = .vertical
-        labels.spacing = 3
-        labels.alignment = .leading
-
-        let actionButton = NSButton(title: actionTitle, target: self, action: action)
-        actionButton.bezelStyle = .rounded
-        let settingsButton = NSButton(title: "System Settings…", target: self, action: settingsAction)
-        settingsButton.bezelStyle = .rounded
-
-        let row = NSStackView(views: [labels, NSView(), actionButton, settingsButton])
-        row.orientation = .horizontal
-        row.spacing = 10
-        row.alignment = .centerY
-        row.widthAnchor.constraint(equalToConstant: 424).isActive = true
-        return (row, actionButton)
+        let setupState = ScreenCapturePermission.setupState
+        screenCaptureStatusLabel.textColor = setupState == .notRequested
+            ? .secondaryLabelColor
+            : .systemOrange
+        screenCaptureActionButton.title = setupState.actionTitle
+        switch setupState {
+        case .notRequested:
+            screenCaptureStatusLabel.stringValue = "Required for window previews"
+            screenCaptureIdentityLabel.stringValue = ScreenCapturePermission.identityHelp
+        case .waitingForRelaunch:
+            screenCaptureStatusLabel.stringValue = "Enable this build in System Settings, then relaunch"
+            screenCaptureIdentityLabel.stringValue = runningBuildDescription
+        case .repairAvailable:
+            screenCaptureStatusLabel.stringValue = "Permission is attached to an older build"
+            screenCaptureIdentityLabel.stringValue = "Resetting affects only \(ScreenCapturePermission.applicationName). \(runningBuildDescription)"
+        }
     }
 
-    private func configure(_ label: NSTextField, granted: Bool) {
-        label.stringValue = granted ? "Granted" : "Permission required"
-        label.textColor = granted ? .systemGreen : .secondaryLabelColor
-        if label === accessibilityStatusLabel, !granted {
-            label.toolTip = "If MacCommandTab is already enabled, use System Settings to repair its stale development-build entry."
-        } else {
-            label.toolTip = nil
+    private func configureLoginItemStatus(error: Error? = nil) {
+        let status = SMAppService.mainApp.status
+        startAtLoginCheckbox.state = status == .enabled || status == .requiresApproval ? .on : .off
+
+        if let error, status != .requiresApproval {
+            loginItemStatusLabel.stringValue = "Couldn’t update Start at Login: \(error.localizedDescription)"
+            loginItemStatusLabel.textColor = .systemRed
+            return
         }
+
+        loginItemStatusLabel.textColor = .secondaryLabelColor
+        switch status {
+        case .enabled:
+            loginItemStatusLabel.stringValue = "MacCommandTab will open automatically when you sign in."
+        case .requiresApproval:
+            loginItemStatusLabel.stringValue = "Approval required in System Settings → Login Items."
+            loginItemStatusLabel.textColor = .systemOrange
+        case .notRegistered:
+            loginItemStatusLabel.stringValue = "Keep the window switcher ready after every sign-in."
+        case .notFound:
+            loginItemStatusLabel.stringValue = "Start at Login is unavailable for this app build."
+        @unknown default:
+            loginItemStatusLabel.stringValue = "Start at Login status is unavailable."
+        }
+    }
+
+    @objc private func changePreviewMode() {
+        let index = previewModeControl.selectedSegment
+        guard PreviewMode.allCases.indices.contains(index) else { return }
+        let mode = PreviewMode.allCases[index]
+        previewModeDescriptionLabel.stringValue = mode.description
+        onPreviewModeChanged?(mode)
+        showFeedback("Preview mode changed to \(mode.title)")
+    }
+
+    @objc private func toggleStartAtLogin() {
+        let service = SMAppService.mainApp
+        do {
+            if startAtLoginCheckbox.state == .on {
+                if service.status == .notRegistered || service.status == .notFound {
+                    try service.register()
+                }
+            } else if service.status != .notRegistered {
+                try service.unregister()
+            }
+            configureLoginItemStatus()
+            showFeedback(
+                startAtLoginCheckbox.state == .on
+                    ? "✓ Launch at Login enabled"
+                    : "Launch at Login disabled"
+            )
+        } catch {
+            configureLoginItemStatus(error: error)
+        }
+    }
+
+    @objc private func openLoginItemSettings() {
+        SMAppService.openSystemSettingsLoginItems()
+    }
+
+    @objc private func requestScreenCapturePermission() {
+        if ScreenCapturePermission.isGranted {
+            ScreenCapturePermission.openSystemSettings()
+            return
+        }
+
+        switch ScreenCapturePermission.setupState {
+        case .notRequested:
+            if ScreenCapturePermission.request() {
+                showFeedback("✓ Window previews enabled")
+                updateStatus()
+            } else {
+                ScreenCapturePermission.openSystemSettings()
+                configureScreenCaptureStatus(granted: false)
+            }
+        case .waitingForRelaunch:
+            ScreenCapturePermission.relaunch()
+        case .repairAvailable:
+            repairScreenCapturePermission()
+        }
+    }
+
+    @objc private func openScreenCaptureSettings() {
+        ScreenCapturePermission.openSystemSettings()
     }
 
     @objc private func checkAccessibilityPermission() {
@@ -213,41 +405,10 @@ final class PermissionsWindowController: NSWindowController {
         }
     }
 
-    @objc private func requestScreenCapturePermission() {
-        if screenCaptureRestartSuggested {
-            relaunchApplication()
-            return
-        }
-
-        if !ScreenCapturePermission.isGranted {
-            let accepted = ScreenCapturePermission.request()
-            screenCaptureRestartSuggested = accepted && !ScreenCapturePermission.isGranted
-        }
-        updateStatus()
-    }
-
     @objc private func openAccessibilitySettings() {
-        guard !AccessibilityPermission.isGranted else {
-            updateStatus()
-            return
-        }
-
-        let alert = NSAlert()
-        alert.alertStyle = .informational
-        alert.messageText = "Grant or repair Accessibility permission"
-        alert.informativeText = "If MacCommandTab is already enabled in System Settings, that entry may belong to an older ad-hoc signed build. You can reset only MacCommandTab's stale entry, then approve the fresh prompt.\n\nRunning app:\n\(AccessibilityPermission.applicationPath)"
-        alert.addButton(withTitle: "Open System Settings")
-        alert.addButton(withTitle: "Reset Stale Entry")
-        alert.addButton(withTitle: "Cancel")
-
-        switch alert.runModal() {
-        case .alertFirstButtonReturn:
-            AccessibilityPermission.openSystemSettings()
-        case .alertSecondButtonReturn:
-            repairAccessibilityPermission()
-        default:
-            break
-        }
+        if !AccessibilityPermission.isGranted { AccessibilityPermission.request() }
+        AccessibilityPermission.openSystemSettings()
+        checkAccessibilityPermission()
     }
 
     private func repairAccessibilityPermission() {
@@ -272,109 +433,39 @@ final class PermissionsWindowController: NSWindowController {
         }
     }
 
-    @objc private func openScreenCaptureSettings() {
-        guard !ScreenCapturePermission.isGranted else {
-            updateStatus()
-            return
-        }
-
-        let alert = NSAlert()
-        alert.alertStyle = .informational
-        alert.messageText = "Grant or repair Window Previews"
-        alert.informativeText = "If MacCommandTab is already enabled under Screen & System Audio Recording, that entry may belong to an older ad-hoc signed build. Reset only MacCommandTab's stale preview entry, approve it again, then restart the app.\n\nRunning app:\n\(ScreenCapturePermission.applicationPath)"
-        alert.addButton(withTitle: "Open System Settings")
-        alert.addButton(withTitle: "Reset Stale Entry")
-        alert.addButton(withTitle: "Cancel")
-
-        switch alert.runModal() {
-        case .alertFirstButtonReturn:
-            screenCaptureRestartSuggested = true
-            updateScreenCaptureStatus(granted: false)
-            ScreenCapturePermission.openSystemSettings()
-        case .alertSecondButtonReturn:
-            repairScreenCapturePermission()
-        default:
-            break
-        }
-    }
-
     private func repairScreenCapturePermission() {
-        screenCaptureRestartSuggested = true
-        screenCaptureStatusLabel.stringValue = "Resetting stale entry…"
+        screenCaptureRepairTask?.cancel()
+        screenCaptureStatusLabel.stringValue = "Resetting this build’s permission…"
         screenCaptureStatusLabel.textColor = .systemOrange
-        screenCaptureActionButton?.title = "Restart App"
+        screenCaptureActionButton.isEnabled = false
 
-        Task { @MainActor [weak self] in
+        screenCaptureRepairTask = Task { @MainActor [weak self] in
             let resetSucceeded = await ScreenCapturePermission.resetStaleEntry()
-            guard let self else { return }
+            guard let self, !Task.isCancelled else { return }
+            screenCaptureActionButton.isEnabled = true
             guard resetSucceeded else {
-                screenCaptureRestartSuggested = false
-                screenCaptureStatusLabel.stringValue = "Reset failed — open settings"
+                screenCaptureStatusLabel.stringValue = "Couldn’t reset permission"
                 screenCaptureStatusLabel.textColor = .systemRed
-                screenCaptureActionButton?.title = "Enable Previews"
-                ScreenCapturePermission.openSystemSettings()
+                showFeedback("Open System Settings and remove the stale MacCommandTab entry.")
                 return
             }
 
-            ScreenCapturePermission.request()
-            ScreenCapturePermission.openSystemSettings()
-            updateScreenCaptureStatus(granted: ScreenCapturePermission.isGranted)
+            ScreenCapturePermission.setupState = .notRequested
+            if ScreenCapturePermission.request() {
+                showFeedback("✓ Window previews enabled")
+                updateStatus()
+            } else {
+                configureScreenCaptureStatus(granted: false)
+                ScreenCapturePermission.openSystemSettings()
+            }
         }
     }
 
-    private func updateScreenCaptureStatus(granted: Bool) {
-        if granted {
-            screenCaptureRestartSuggested = false
-            configure(screenCaptureStatusLabel, granted: true)
-            screenCaptureActionButton?.title = "Enabled"
-            screenCaptureActionButton?.isEnabled = false
-        } else if screenCaptureRestartSuggested {
-            screenCaptureStatusLabel.stringValue = "Restart after enabling"
-            screenCaptureStatusLabel.textColor = .systemOrange
-            screenCaptureActionButton?.title = "Restart App"
-            screenCaptureActionButton?.isEnabled = true
-        } else {
-            configure(screenCaptureStatusLabel, granted: false)
-            screenCaptureActionButton?.title = "Enable Previews"
-            screenCaptureActionButton?.isEnabled = true
-        }
+    private var runningBuildDescription: String {
+        "Current build: \(ScreenCapturePermission.bundleIdentifier) at \(ScreenCapturePermission.applicationPath)"
     }
 
-    private func relaunchApplication() {
-        let launcher = Process()
-        launcher.executableURL = URL(fileURLWithPath: "/bin/sh")
-        launcher.arguments = [
-            "-c",
-            "sleep 0.5; exec /usr/bin/open \"$1\"",
-            "MacCommandTab-relaunch",
-            Bundle.main.bundleURL.path
-        ]
-
-        do {
-            try launcher.run()
-            NSApp.terminate(nil)
-        } catch {
-            screenCaptureStatusLabel.stringValue = "Restart failed — reopen manually"
-            screenCaptureStatusLabel.textColor = .systemRed
-        }
-    }
-
-    @objc private func previewSelectedEffect() {
-        guard let rawValue = effectsPopUp.selectedItem?.representedObject as? String,
-              let effect = WindowEffect(rawValue: rawValue) else { return }
-        guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
-            effectsStatusLabel.stringValue = "Reduce Motion is on"
-            return
-        }
-
-        let started = onPreviewEffect?(effect) ?? false
-        effectsStatusLabel.stringValue = started ? "Playing \(effect.title)…" : "Preview unavailable"
-        effectsStatusLabel.textColor = started ? .systemCyan : .systemOrange
-
-        guard started else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + effect.defaultDuration + 0.18) { [weak self] in
-            self?.effectsStatusLabel.stringValue = "Ready"
-            self?.effectsStatusLabel.textColor = .tertiaryLabelColor
-        }
+    private func showFeedback(_ message: String) {
+        feedbackLabel.stringValue = message
     }
 }

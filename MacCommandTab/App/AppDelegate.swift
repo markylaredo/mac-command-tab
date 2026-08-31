@@ -25,4 +25,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         coordinator?.showPermissionWindow()
         return true
     }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        coordinator?.shutdown()
+    }
 }

@@ -32,10 +32,15 @@ actor WindowSnapshotService {
                 guard let candidate = matcher.match(
                     target: WindowPreviewTarget(window: window),
                     candidates: candidates
-                ), let captureWindow = windowsByID[candidate.windowID] else { continue }
+                ), let captureWindow = windowsByID[candidate.windowID] else {
+                    LivePreviewDiagnostics.log("preview source unavailable id=\(window.id.rawValue)")
+                    continue
+                }
                 captureWindows[window.id] = captureWindow
+                LivePreviewDiagnostics.log("preview source created id=\(window.id.rawValue)")
             }
         } catch {
+            LivePreviewDiagnostics.log("preview source resolution failed error=\(error.localizedDescription)")
             captureWindows.removeAll(keepingCapacity: true)
         }
     }
@@ -44,17 +49,38 @@ actor WindowSnapshotService {
         for windows: [WindowInfo],
         maximumPixelSize: CGSize
     ) async -> [WindowID: WindowSnapshot] {
+        let startedAt = Date()
+        let requestedIDs = Set(windows.map(\.id))
+        let cacheHits = frameCache.snapshots(for: requestedIDs).count
         guard ScreenCapturePermission.isGranted else {
-            return frameCache.snapshots(for: Set(windows.map(\.id)))
+            let cached = frameCache.snapshots(for: requestedIDs)
+            logCaptureMetrics(
+                windowCount: windows.count,
+                cacheHits: cached.count,
+                duration: Date().timeIntervalSince(startedAt)
+            )
+            return cached
         }
 
+        await prepare(for: windows)
         for window in windows {
             guard !Task.isCancelled else { break }
-            if let snapshot = await captureSnapshot(for: window, maximumPixelSize: maximumPixelSize) {
+            guard let captureWindow = captureWindows[window.id] else { continue }
+            if let snapshot = await captureSnapshot(
+                for: window,
+                captureWindow: captureWindow,
+                maximumPixelSize: maximumPixelSize
+            ) {
                 frameCache.insert(snapshot)
             }
         }
-        return frameCache.snapshots(for: Set(windows.map(\.id)))
+        let snapshots = frameCache.snapshots(for: requestedIDs)
+        logCaptureMetrics(
+            windowCount: windows.count,
+            cacheHits: cacheHits,
+            duration: Date().timeIntervalSince(startedAt)
+        )
+        return snapshots
     }
 
     func captureWindows(for windows: [WindowInfo]) async -> [WindowID: WindowCaptureSource] {
@@ -73,10 +99,19 @@ actor WindowSnapshotService {
         if captureWindows[window.id] == nil {
             await prepare(for: [window])
         }
-        guard let captureWindow = captureWindows[window.id] else {
-            return frameCache.snapshot(for: window.id)
-        }
+        guard let captureWindow = captureWindows[window.id] else { return frameCache.snapshot(for: window.id) }
+        return await captureSnapshot(
+            for: window,
+            captureWindow: captureWindow,
+            maximumPixelSize: maximumPixelSize
+        )
+    }
 
+    private func captureSnapshot(
+        for window: WindowInfo,
+        captureWindow: SCWindow,
+        maximumPixelSize: CGSize
+    ) async -> WindowSnapshot? {
         let configuration = SCStreamConfiguration()
         let pixelSize = Self.scaledPixelSize(for: captureWindow.frame.size, maximum: maximumPixelSize)
         configuration.width = Int(pixelSize.width)
@@ -118,6 +153,14 @@ actor WindowSnapshotService {
         return CGSize(
             width: max(1, (source.width * scale).rounded()),
             height: max(1, (source.height * scale).rounded())
+        )
+    }
+
+    private func logCaptureMetrics(windowCount: Int, cacheHits: Int, duration: TimeInterval) {
+        let formattedDuration = String(format: "%.0f", duration * 1_000)
+        LivePreviewDiagnostics.log(
+            "thumbnail capture windows=\(windowCount) duration=\(formattedDuration)ms "
+                + "cacheHits=\(cacheHits) cacheMisses=\(max(0, windowCount - cacheHits))"
         )
     }
 }

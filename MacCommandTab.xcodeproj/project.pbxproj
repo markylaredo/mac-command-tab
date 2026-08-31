@@ -47,6 +47,7 @@
 		A10000000000000000000027 /* SwitcherLayoutCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* SwitcherLayoutCalculatorTests.swift */; };
 		A10000000000000000000028 /* AdaptiveSwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* AdaptiveSwitcherView.swift */; };
 		A10000000000000000000029 /* LiveWindowPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* LiveWindowPreview.swift */; };
+		A1000000000000000000002A /* SwitcherChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* SwitcherChrome.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -100,6 +101,7 @@
 		A20000000000000000000026 /* SwitcherLayoutCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitcherLayoutCalculatorTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000027 /* AdaptiveSwitcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveSwitcherView.swift; sourceTree = "<group>"; };
 		A20000000000000000000028 /* LiveWindowPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveWindowPreview.swift; sourceTree = "<group>"; };
+		A20000000000000000000029 /* SwitcherChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitcherChrome.swift; sourceTree = "<group>"; };
 		A30000000000000000000001 /* MacCommandTab.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacCommandTab.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A30000000000000000000002 /* MacCommandTabTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MacCommandTabTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -182,6 +184,7 @@
 			children = (
 				A2000000000000000000000A /* SwitcherPanel.swift */,
 				A20000000000000000000027 /* AdaptiveSwitcherView.swift */,
+				A20000000000000000000029 /* SwitcherChrome.swift */,
 				A20000000000000000000023 /* SwitcherAppearance.swift */,
 				A20000000000000000000024 /* SwitcherLayoutCalculator.swift */,
 				A2000000000000000000000B /* SwitcherView.swift */,
@@ -397,6 +400,7 @@
 				A10000000000000000000025 /* SwitcherLayoutCalculator.swift in Sources */,
 				A10000000000000000000026 /* WindowSearch.swift in Sources */,
 				A10000000000000000000028 /* AdaptiveSwitcherView.swift in Sources */,
+				A1000000000000000000002A /* SwitcherChrome.swift in Sources */,
 				A1000000000000000000000D /* AccessibilityPermission.swift in Sources */,
 				A1000000000000000000000E /* PermissionsWindowController.swift in Sources */,
 				A10000000000000000000013 /* ScreenCapturePermission.swift in Sources */,
@@ -468,16 +472,19 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_TESTABILITY = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = MacCommandTab;
+				INFOPLIST_KEY_CFBundleDisplayName = "MacCommandTab Dev";
+				INFOPLIST_KEY_CFBundleName = "MacCommandTab Dev";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAccessibilityUsageDescription = "MacCommandTab needs Accessibility permission to detect shortcuts and switch between windows.";
-				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "MacCommandTab uses Screen Recording permission for live window previews and GPU window effects.";
+				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "MacCommandTab uses Screen Recording permission only to display previews of open windows inside the switcher.";
 				MARKETING_VERSION = 0.2.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.maccommandtab.app;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.maccommandtab.app.debug;
+				PRODUCT_MODULE_NAME = MacCommandTab;
+				PRODUCT_NAME = "MacCommandTab Dev";
 				SUPPORTED_PLATFORMS = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
 		};
@@ -486,16 +493,18 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = MacCommandTab;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAccessibilityUsageDescription = "MacCommandTab needs Accessibility permission to detect shortcuts and switch between windows.";
-				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "MacCommandTab uses Screen Recording permission for live window previews and GPU window effects.";
+				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "MacCommandTab uses Screen Recording permission only to display previews of open windows inside the switcher.";
 				MARKETING_VERSION = 0.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maccommandtab.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
 		};
@@ -508,7 +517,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.maccommandtab.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = macosx;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MacCommandTab.app/Contents/MacOS/MacCommandTab";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MacCommandTab Dev.app/Contents/MacOS/MacCommandTab Dev";
 			};
 			name = Debug;
 		};

@@ -13,7 +13,6 @@ final class StatusBarController: NSObject {
     private var appearanceItems: [SwitcherAppearance: NSMenuItem] = [:]
     private var themeItems: [SwitcherTheme: NSMenuItem] = [:]
     private var selectionEffectItems: [SwitcherSelectionEffect: NSMenuItem] = [:]
-    private var windowEffectItems: [WindowEffect: NSMenuItem] = [:]
 
     init(coordinator: SwitcherCoordinator) {
         self.coordinator = coordinator
@@ -23,7 +22,9 @@ final class StatusBarController: NSObject {
             self?.permissionItem.title = granted ? "Accessibility: Granted" : "Accessibility: Required"
         }
         coordinator.onScreenCapturePermissionStatusChanged = { [weak self] granted in
-            self?.previewPermissionItem.title = granted ? "Window Previews: Granted" : "Window Previews: Required"
+            self?.previewPermissionItem.title = granted
+                ? "Window Previews: Enabled"
+                : "Window Previews: Permission Required"
         }
         coordinator.onShortcutStatusChanged = { [weak self] active in
             self?.shortcutItem.title = active ? "Shortcut: Option–Tab Active" : "Shortcut: Unavailable"
@@ -42,9 +43,6 @@ final class StatusBarController: NSObject {
         }
         coordinator.onSelectionEffectChanged = { [weak self] effect in
             self?.updateSelectionEffect(effect)
-        }
-        coordinator.onWindowEffectChanged = { [weak self] effect in
-            self?.updateWindowEffect(effect)
         }
         coordinator.onAppearanceChanged = { [weak self] appearance in
             self?.updateAppearanceSelection(appearance)
@@ -70,7 +68,6 @@ final class StatusBarController: NSObject {
         configureGlassItem()
         menu.addItem(glassItem)
         menu.addItem(makeSelectionEffectMenu())
-        menu.addItem(makeWindowEffectMenu())
         menu.addItem(.separator())
 
         [shortcutItem, windowCountItem, permissionItem, previewPermissionItem].forEach {
@@ -79,7 +76,7 @@ final class StatusBarController: NSObject {
         }
 
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Permissions…", action: #selector(openPermissions), keyEquivalent: "")
+        menu.addItem(withTitle: "Settings…", action: #selector(openPermissions), keyEquivalent: "")
         menu.addItem(withTitle: "About MacCommandTab", action: #selector(showAbout), keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit MacCommandTab", action: #selector(quit), keyEquivalent: "q")
@@ -193,30 +190,6 @@ final class StatusBarController: NSObject {
         }
     }
 
-    private func makeWindowEffectMenu() -> NSMenuItem {
-        let item = NSMenuItem(title: "Window Effect", action: nil, keyEquivalent: "")
-        let submenu = NSMenu(title: "Window Effect")
-
-        for effect in WindowEffect.allCases {
-            let effectItem = NSMenuItem(title: effect.title, action: #selector(selectWindowEffect(_:)), keyEquivalent: "")
-            effectItem.toolTip = effect.subtitle
-            effectItem.representedObject = effect.rawValue
-            effectItem.target = self
-            windowEffectItems[effect] = effectItem
-            submenu.addItem(effectItem)
-        }
-
-        item.submenu = submenu
-        updateWindowEffect(coordinator.currentWindowEffect)
-        return item
-    }
-
-    private func updateWindowEffect(_ selectedEffect: WindowEffect) {
-        for (effect, item) in windowEffectItems {
-            item.state = effect == selectedEffect ? .on : .off
-        }
-    }
-
     private static func makeMenuBarIcon() -> NSImage {
         let size = NSSize(width: 18, height: 18)
         let image = NSImage(size: size, flipped: false) { _ in
@@ -278,12 +251,6 @@ final class StatusBarController: NSObject {
         guard let rawValue = sender.representedObject as? String,
               let effect = SwitcherSelectionEffect(rawValue: rawValue) else { return }
         coordinator.setSelectionEffect(effect)
-    }
-
-    @objc private func selectWindowEffect(_ sender: NSMenuItem) {
-        guard let rawValue = sender.representedObject as? String,
-              let effect = WindowEffect(rawValue: rawValue) else { return }
-        coordinator.setWindowEffect(effect)
     }
 
     @objc private func showAbout() {

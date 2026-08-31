@@ -2,29 +2,42 @@ import AppKit
 
 @MainActor
 final class SwitcherCoordinator {
+    private enum SelectionInputMode {
+        case keyboard
+        case pointer
+    }
+
     private let tracker = WindowTracker()
     private let hotkeyMonitor = GlobalHotkeyMonitor()
-    private let panel: SwitcherPanel
-    private let activator = WindowActivator()
     private let snapshotService: WindowSnapshotService
     private let previewService: WindowPreviewService
     private let livePreviewCoordinator: LivePreviewCoordinator
-    private let effectEngine: EffectEngine
+    private lazy var panel = SwitcherPanel(
+        livePreviewCoordinator: livePreviewCoordinator,
+        onHoverSelection: { [weak self] index in self?.handleHoverSelection(index) },
+        onClickSelection: { [weak self] index in self?.handleClickSelection(index) },
+        onDidHide: { [weak self] in self?.handlePanelHidden() }
+    )
+    private let activator = WindowActivator()
     private let permissionWindow = PermissionsWindowController()
     private var permissionTimer: Timer?
     private var appDidBecomeActiveObserver: NSObjectProtocol?
-    private var cachedPreviewTask: Task<Void, Never>?
+    private var screenParametersObserver: NSObjectProtocol?
     private var sessionWindows: [WindowInfo] = []
     private var visibleSessionWindows: [WindowInfo] = []
+    private var sessionPreviewMode: PreviewMode?
+    private var originalWindow: WindowInfo?
     private var searchQuery = ""
+    private var selectionInputMode = SelectionInputMode.keyboard
+    private var lastSelectionPointerLocation = NSEvent.mouseLocation
     private var accessibilityPermissionGranted = false
     private var screenCapturePermissionGranted = false
     private(set) var currentPreset = SwitcherPreset.saved
     private(set) var currentTheme = SwitcherTheme.saved
     private(set) var isGlassEnabled = SwitcherGlassPreference.saved
     private(set) var currentSelectionEffect = SwitcherSelectionEffect.saved
-    private(set) var currentWindowEffect = WindowEffect.saved
     private(set) var currentAppearance = SwitcherAppearance.saved
+    private(set) var currentPreviewMode = PreviewMode.saved
     var onAccessibilityPermissionStatusChanged: ((Bool) -> Void)?
     var onScreenCapturePermissionStatusChanged: ((Bool) -> Void)?
     var onShortcutStatusChanged: ((Bool) -> Void)?
@@ -33,28 +46,29 @@ final class SwitcherCoordinator {
     var onThemeChanged: ((SwitcherTheme) -> Void)?
     var onGlassEnabledChanged: ((Bool) -> Void)?
     var onSelectionEffectChanged: ((SwitcherSelectionEffect) -> Void)?
-    var onWindowEffectChanged: ((WindowEffect) -> Void)?
     var onAppearanceChanged: ((SwitcherAppearance) -> Void)?
+    var onPreviewModeChanged: ((PreviewMode) -> Void)?
 
     init() {
         let snapshotService = WindowSnapshotService()
         self.snapshotService = snapshotService
         let previewService = WindowPreviewService(snapshotService: snapshotService)
         self.previewService = previewService
-        let livePreviewCoordinator = LivePreviewCoordinator(previewService: previewService)
-        self.livePreviewCoordinator = livePreviewCoordinator
-        panel = SwitcherPanel(livePreviewCoordinator: livePreviewCoordinator)
-        effectEngine = EffectEngine()
+        livePreviewCoordinator = LivePreviewCoordinator(previewService: previewService)
+
         panel.setPreset(currentPreset)
         panel.setTheme(currentTheme)
         panel.setGlassEnabled(isGlassEnabled)
         panel.setSelectionEffect(currentSelectionEffect)
         panel.setAppearance(currentAppearance)
+        permissionWindow.setPreviewMode(currentPreviewMode)
         hotkeyMonitor.updateNavigationLayout(currentPreset.navigationLayout)
         tracker.onWindowsChanged = { [weak self] windows in
             guard let self else { return }
             if self.sessionWindows.isEmpty {
                 self.hotkeyMonitor.updateItemCount(windows.count)
+            } else {
+                self.reconcileOpenSession(with: windows)
             }
             self.onWindowCountChanged?(windows.count)
         }
@@ -65,8 +79,11 @@ final class SwitcherCoordinator {
         permissionWindow.onScreenCapturePermissionChanged = { [weak self] granted in
             self?.applyScreenCapturePermission(granted)
         }
-        permissionWindow.onPreviewEffect = { [weak self] effect in
-            self?.previewWindowEffect(effect) ?? false
+        permissionWindow.onPreviewModeChanged = { [weak self] mode in
+            self?.setPreviewMode(mode)
+        }
+        livePreviewCoordinator.onPreviewUpdated = { [weak self] windowID, preview in
+            self?.panel.updatePreview(preview, for: windowID)
         }
     }
 
@@ -88,6 +105,15 @@ final class SwitcherCoordinator {
                 self?.refreshPermissionStatus()
             }
         }
+        screenParametersObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: NSApp,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.endSwitcherSession(restoringOriginalWindow: true)
+            }
+        }
 
         if !accessibilityPermissionGranted { AccessibilityPermission.request() }
         permissionWindow.show()
@@ -101,6 +127,21 @@ final class SwitcherCoordinator {
 
     func showPermissionWindow() {
         permissionWindow.show()
+    }
+
+    func shutdown() {
+        permissionTimer?.invalidate()
+        permissionTimer = nil
+        if let appDidBecomeActiveObserver {
+            NotificationCenter.default.removeObserver(appDidBecomeActiveObserver)
+            self.appDidBecomeActiveObserver = nil
+        }
+        if let screenParametersObserver {
+            NotificationCenter.default.removeObserver(screenParametersObserver)
+            self.screenParametersObserver = nil
+        }
+        endSwitcherSession(dismissPanel: false)
+        panel.orderOut(nil)
     }
 
     func refreshWindows() {
@@ -144,24 +185,27 @@ final class SwitcherCoordinator {
         onSelectionEffectChanged?(effect)
     }
 
-    func setWindowEffect(_ effect: WindowEffect) {
-        guard effect != currentWindowEffect else { return }
-        currentWindowEffect = effect
-        effect.save()
-        onWindowEffectChanged?(effect)
-    }
-
     func setAppearance(_ appearance: SwitcherAppearance) {
         guard appearance != currentAppearance else { return }
         currentAppearance = appearance
         appearance.save()
         panel.setAppearance(appearance)
-        if appearance == .thumbnails, !sessionWindows.isEmpty {
-            startPreviewSession(for: visibleSessionWindows)
-        } else if appearance != .thumbnails {
-            stopPreviewSession()
+        if !sessionWindows.isEmpty {
+            if appearance == .thumbnails {
+                startPreviewSession()
+            } else {
+                stopPreviewSession()
+            }
         }
         onAppearanceChanged?(appearance)
+    }
+
+    func setPreviewMode(_ mode: PreviewMode) {
+        guard mode != currentPreviewMode else { return }
+        currentPreviewMode = mode
+        mode.save()
+        permissionWindow.setPreviewMode(mode)
+        onPreviewModeChanged?(mode)
     }
 
     private func applyAccessibilityPermission(_ granted: Bool) {
@@ -179,6 +223,7 @@ final class SwitcherCoordinator {
             tracker.start()
             onShortcutStatusChanged?(hotkeyMonitor.start())
         } else {
+            endSwitcherSession(restoringOriginalWindow: true)
             hotkeyMonitor.stop()
             tracker.stop()
             onShortcutStatusChanged?(false)
@@ -193,10 +238,10 @@ final class SwitcherCoordinator {
         screenCapturePermissionGranted = granted
         onScreenCapturePermissionStatusChanged?(granted)
         permissionWindow.updateStatus(notify: false)
+
         if granted, !sessionWindows.isEmpty, currentAppearance == .thumbnails {
-            startPreviewSession(for: visibleSessionWindows)
-        }
-        if !granted {
+            startPreviewSession()
+        } else if !granted {
             stopPreviewSession()
         }
     }
@@ -205,65 +250,52 @@ final class SwitcherCoordinator {
         switch action {
         case let .opened(selection):
             let windows = tracker.windows
-            guard !windows.isEmpty else { return }
             sessionWindows = windows
             visibleSessionWindows = windows
+            sessionPreviewMode = currentPreviewMode
+            originalWindow = originalFocusedWindow(in: windows)
             searchQuery = ""
-            let selectedIndex = min(selection, windows.count - 1)
-            let layout = panel.show(windows: windows, selectedIndex: selectedIndex)
+            let selectedIndex = windows.isEmpty ? nil : min(selection, windows.count - 1)
+            noteKeyboardSelection()
+            let layout = panel.show(windows: windows, selectedIndex: selectedIndex ?? 0)
             hotkeyMonitor.updateActiveSession(
                 itemCount: windows.count,
                 selectedIndex: selectedIndex,
                 columns: layout.columns,
                 queryIsEmpty: true
             )
-            if currentAppearance == .thumbnails {
-                startPreviewSession(for: windows)
-            }
+            if currentAppearance == .thumbnails { startPreviewSession() }
+            if let selectedIndex { previewSelection(at: selectedIndex) }
         case let .selectionChanged(index):
+            noteKeyboardSelection()
             panel.select(index)
-            let selectedID = visibleSessionWindows.indices.contains(index)
-                ? visibleSessionWindows[index].id
-                : nil
-            livePreviewCoordinator.updateSelection(selectedID)
+            previewSelection(at: index)
         case let .searchCharacter(characters):
+            noteKeyboardSelection()
             searchQuery.append(contentsOf: characters)
             updateSearchResults()
         case .searchBackspace:
+            noteKeyboardSelection()
             searchQuery = WindowSearch.deletingLastCharacter(from: searchQuery)
             updateSearchResults()
         case .searchCleared:
+            noteKeyboardSelection()
             searchQuery = ""
             updateSearchResults()
         case .cancelled:
-            stopPreviewSession()
-            panel.dismiss()
-            sessionWindows = []
-            visibleSessionWindows = []
-            searchQuery = ""
-            hotkeyMonitor.updateItemCount(tracker.windows.count)
+            endSwitcherSession(restoringOriginalWindow: true)
         case let .committed(selection):
-            let windows = visibleSessionWindows
-            stopPreviewSession()
-            panel.dismiss()
-            sessionWindows = []
-            visibleSessionWindows = []
-            searchQuery = ""
-            hotkeyMonitor.updateItemCount(tracker.windows.count)
-            guard windows.indices.contains(selection) else { return }
-            let window = windows[selection]
-            activator.activate(window)
-            playRestoreEffectIfAvailable(for: window)
+            commitSelection(selection)
         }
     }
 
     private func updateSearchResults() {
-        let selectedID = hotkeyMonitor.selectedIndex.flatMap { index in
+        let previousSelectedID = hotkeyMonitor.selectedIndex.flatMap { index in
             visibleSessionWindows.indices.contains(index) ? visibleSessionWindows[index].id : nil
         }
         let filtered = WindowSearch.filter(sessionWindows, query: searchQuery)
         let selectedIndex = WindowSearch.selectionIndex(
-            preserving: selectedID,
+            preserving: previousSelectedID,
             visibleIDs: filtered.map(\.id)
         )
         visibleSessionWindows = filtered
@@ -279,6 +311,7 @@ final class SwitcherCoordinator {
             columns: layout.columns,
             queryIsEmpty: searchQuery.isEmpty
         )
+        if let selectedIndex { previewSelection(at: selectedIndex) }
         if currentAppearance == .thumbnails {
             let selectedID = selectedIndex.flatMap { index in
                 filtered.indices.contains(index) ? filtered[index].id : nil
@@ -292,58 +325,53 @@ final class SwitcherCoordinator {
         }
     }
 
-    private func playRestoreEffectIfAvailable(for window: WindowInfo) {
-        let effect = currentWindowEffect
-        guard effect != .none else { return }
-
-        Task { @MainActor [weak self] in
-            guard let self,
-                  let snapshot = await self.snapshotService.cachedSnapshot(for: window.id) else { return }
-            self.effectEngine.play(
-                effect: effect,
-                snapshot: snapshot,
-                frame: window.frame,
-                direction: .opening,
-                duration: effect.defaultDuration
-            )
-        }
-    }
-
-    private func previewWindowEffect(_ effect: WindowEffect) -> Bool {
-        guard effect != .none,
-              let snapshot = EffectPreviewSnapshotFactory.makeSnapshot() else { return false }
-        let sampleSize = CGSize(width: 640, height: 360)
-        let referenceFrame = permissionWindow.window?.frame
-            ?? NSScreen.main?.visibleFrame
-            ?? CGRect(x: 0, y: 0, width: 900, height: 700)
-        let frame = CGRect(
-            x: referenceFrame.midX - sampleSize.width / 2,
-            y: referenceFrame.midY - sampleSize.height / 2,
-            width: sampleSize.width,
-            height: sampleSize.height
+    private func handleHoverSelection(_ index: Int) {
+        guard panel.isVisible, visibleSessionWindows.indices.contains(index) else { return }
+        let pointerLocation = NSEvent.mouseLocation
+        let distance = hypot(
+            pointerLocation.x - lastSelectionPointerLocation.x,
+            pointerLocation.y - lastSelectionPointerLocation.y
         )
-        return effectEngine.playPreview(
-            effect: effect,
-            snapshot: snapshot,
-            appKitFrame: frame,
-            direction: .closing,
-            duration: effect.defaultDuration
-        ) != nil
+        let movementThreshold: CGFloat = selectionInputMode == .keyboard ? 5 : 0.5
+        guard distance >= movementThreshold else { return }
+        selectionInputMode = .pointer
+        lastSelectionPointerLocation = pointerLocation
+        hotkeyMonitor.synchronizeSelection(index)
+        panel.select(index)
+        previewSelection(at: index)
     }
 
-    private func startPreviewSession(for windows: [WindowInfo]) {
-        stopPreviewSession()
-        guard screenCapturePermissionGranted else { return }
-        cachedPreviewTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            let cachedPreviews = await self.previewService.cachedPreviews(for: windows)
-            guard !Task.isCancelled else { return }
-            if !cachedPreviews.isEmpty { self.panel.updatePreviews(cachedPreviews) }
+    private func handleClickSelection(_ index: Int) {
+        guard panel.isVisible, visibleSessionWindows.indices.contains(index) else { return }
+        selectionInputMode = .pointer
+        hotkeyMonitor.synchronizeSelection(index)
+        panel.select(index)
+        commitSelection(index)
+    }
+
+    private func noteKeyboardSelection() {
+        selectionInputMode = .keyboard
+        lastSelectionPointerLocation = NSEvent.mouseLocation
+    }
+
+    private func commitSelection(_ index: Int) {
+        let windows = visibleSessionWindows
+        endSwitcherSession()
+        guard windows.indices.contains(index) else { return }
+        let window = windows[index]
+        activator.activate(window)
+    }
+
+    private func previewSelection(at index: Int) {
+        guard visibleSessionWindows.indices.contains(index) else { return }
+        let window = visibleSessionWindows[index]
+        livePreviewCoordinator.updateSelection(window.id)
+        activator.preview(window) { [weak self] in
+            self?.panel.keepVisibleAbovePreview()
         }
-        beginLivePreviews()
     }
 
-    private func beginLivePreviews() {
+    private func startPreviewSession() {
         guard screenCapturePermissionGranted,
               currentAppearance == .thumbnails,
               !sessionWindows.isEmpty else { return }
@@ -351,6 +379,7 @@ final class SwitcherCoordinator {
             visibleSessionWindows.indices.contains(index) ? visibleSessionWindows[index].id : nil
         }
         livePreviewCoordinator.beginSession(
+            mode: sessionPreviewMode ?? currentPreviewMode,
             allWindows: sessionWindows,
             visibleWindows: visibleSessionWindows,
             selectedID: selectedID,
@@ -360,8 +389,53 @@ final class SwitcherCoordinator {
     }
 
     private func stopPreviewSession() {
-        cachedPreviewTask?.cancel()
-        cachedPreviewTask = nil
-        livePreviewCoordinator.stopAll()
+        livePreviewCoordinator.stopSession()
+    }
+
+    private func endSwitcherSession(
+        restoringOriginalWindow: Bool = false,
+        dismissPanel: Bool = true
+    ) {
+        if restoringOriginalWindow { activator.restore(originalWindow) }
+        stopPreviewSession()
+        if dismissPanel, panel.isVisible { panel.dismiss() }
+        sessionWindows = []
+        visibleSessionWindows = []
+        sessionPreviewMode = nil
+        originalWindow = nil
+        searchQuery = ""
+        hotkeyMonitor.updateItemCount(tracker.windows.count)
+        if !dismissPanel || !panel.isVisible {
+            livePreviewCoordinator.verifyIdleAfterPanelClosed()
+        }
+    }
+
+    private func handlePanelHidden() {
+        let wasActive = !sessionWindows.isEmpty
+        endSwitcherSession(
+            restoringOriginalWindow: wasActive,
+            dismissPanel: false
+        )
+    }
+
+    private func reconcileOpenSession(with latestWindows: [WindowInfo]) {
+        let latestByID = Dictionary(uniqueKeysWithValues: latestWindows.map { ($0.id, $0) })
+        let remainingWindows = sessionWindows.compactMap { latestByID[$0.id] }
+        guard remainingWindows.count != sessionWindows.count else { return }
+
+        sessionWindows = remainingWindows
+        guard !sessionWindows.isEmpty else {
+            endSwitcherSession(restoringOriginalWindow: true)
+            return
+        }
+        updateSearchResults()
+    }
+
+    private func originalFocusedWindow(in windows: [WindowInfo]) -> WindowInfo? {
+        guard let frontmostPID = NSWorkspace.shared.frontmostApplication?.processIdentifier else {
+            return nil
+        }
+        return windows.first { $0.pid == frontmostPID && $0.isFocused }
+            ?? windows.first { $0.pid == frontmostPID }
     }
 }

@@ -37,18 +37,23 @@ struct SwitcherLayoutCalculator: Sendable {
         let verticalSpacing: CGFloat
         let horizontalPadding: CGFloat
         let verticalPadding: CGFloat
-        let headerHeight: CGFloat
         let minimumPanelWidth: CGFloat
+        let maximumPanelWidth: CGFloat
     }
 
     func calculateLayout(
         itemCount: Int,
         availableSize: CGSize,
-        appearance: SwitcherAppearance
+        appearance: SwitcherAppearance,
+        searchActive: Bool = false
     ) -> SwitcherLayout {
         let metrics = metrics(for: appearance)
-        let maximumWidth = max(360, availableSize.width * 0.92)
-        let maximumHeight = max(180, availableSize.height * 0.78)
+        let maximumWidth = min(
+            metrics.maximumPanelWidth,
+            max(metrics.minimumPanelWidth, availableSize.width * 0.92)
+        )
+        let maximumHeight = max(160, availableSize.height * 0.78)
+        let chromeHeight: CGFloat = 48 + 34
 
         guard itemCount > 0 else {
             return SwitcherLayout(
@@ -58,97 +63,89 @@ struct SwitcherLayoutCalculator: Sendable {
                 itemSize: .zero,
                 horizontalSpacing: metrics.horizontalSpacing,
                 verticalSpacing: metrics.verticalSpacing,
-                panelSize: CGSize(width: min(maximumWidth, 420), height: 92),
+                panelSize: CGSize(
+                    width: min(maximumWidth, searchActive ? 440 : 280),
+                    height: chromeHeight + 88
+                ),
                 requiresVerticalScrolling: false
             )
         }
 
-        var best: (layout: SwitcherLayout, score: CGFloat)?
-        for columns in 1...itemCount {
-            let rows = Int(ceil(Double(itemCount) / Double(columns)))
-            let widthLimit = (
-                maximumWidth
+        let adaptiveWidth = adaptivePreferredWidth(
+            metrics.preferredWidth,
+            availableWidth: availableSize.width,
+            appearance: appearance
+        )
+        let densityScale: CGFloat
+        switch itemCount {
+        case ...10: densityScale = 1
+        case 11...20: densityScale = 0.92
+        default: densityScale = 0.82
+        }
+        let preferredWidth = max(metrics.emergencyMinimumWidth, floor(adaptiveWidth * densityScale))
+        let oneRowWidth = floor(
+            (maximumWidth
                 - metrics.horizontalPadding
-                - CGFloat(columns - 1) * metrics.horizontalSpacing
-            ) / CGFloat(columns)
-            let heightLimit = (
-                maximumHeight
-                - metrics.headerHeight
-                - metrics.verticalPadding
-                - CGFloat(rows - 1) * metrics.verticalSpacing
-            ) / CGFloat(rows)
-            let cardWidth = fittedCardWidth(
-                widthLimit: widthLimit,
-                heightLimit: heightLimit,
-                metrics: metrics
-            )
-            guard cardWidth >= metrics.emergencyMinimumWidth else { continue }
-
-            let previewHeight = previewHeight(for: cardWidth, metrics: metrics)
-            let itemHeight = itemHeight(for: cardWidth, metrics: metrics)
-            let panelWidth = min(
-                maximumWidth,
-                max(
-                    metrics.minimumPanelWidth,
-                    CGFloat(columns) * cardWidth
-                        + CGFloat(columns - 1) * metrics.horizontalSpacing
-                        + metrics.horizontalPadding
-                )
-            )
-            let panelHeight = min(
-                maximumHeight,
-                metrics.headerHeight
-                    + metrics.verticalPadding
-                    + CGFloat(rows) * itemHeight
-                    + CGFloat(rows - 1) * metrics.verticalSpacing
-            )
-            let unusedSlots = columns * rows - itemCount
-            let normalizedWidth = min(cardWidth, metrics.preferredWidth) / metrics.preferredWidth
-            let readability = normalizedWidth * normalizedWidth * 1_000
-            let normalSizeBonus: CGFloat = cardWidth >= metrics.normalMinimumWidth ? 160 : 0
-            let wastePenalty = CGFloat(unusedSlots) * 34
-            let panelRatio = panelWidth / max(panelHeight, 1)
-            let targetRatio: CGFloat = appearance == .windowTitles ? 1.8 : 1.65
-            let aspectPenalty = abs(panelRatio - targetRatio) * 18
-            let score = readability + normalSizeBonus - wastePenalty - aspectPenalty
-            let layout = SwitcherLayout(
-                columns: columns,
-                rows: rows,
-                previewSize: CGSize(width: cardWidth, height: previewHeight),
-                itemSize: CGSize(width: cardWidth, height: itemHeight),
-                horizontalSpacing: metrics.horizontalSpacing,
-                verticalSpacing: metrics.verticalSpacing,
-                panelSize: CGSize(width: panelWidth, height: panelHeight),
-                requiresVerticalScrolling: false
-            )
-            if best == nil || score > best!.score {
-                best = (layout, score)
-            }
+                - CGFloat(max(0, itemCount - 1)) * metrics.horizontalSpacing)
+                / CGFloat(itemCount)
+        )
+        let preferredColumns = max(
+            1,
+            Int((maximumWidth - metrics.horizontalPadding + metrics.horizontalSpacing)
+                / (preferredWidth + metrics.horizontalSpacing))
+        )
+        let columns: Int
+        if oneRowWidth >= metrics.normalMinimumWidth {
+            columns = itemCount
+        } else {
+            let preferredRows = Int(ceil(Double(itemCount) / Double(preferredColumns)))
+            columns = Int(ceil(Double(itemCount) / Double(preferredRows)))
         }
-
-        if let best { return best.layout }
-        return scrollingFallback(
-            itemCount: itemCount,
-            maximumWidth: maximumWidth,
-            maximumHeight: maximumHeight,
-            metrics: metrics
+        let rows = Int(ceil(Double(itemCount) / Double(columns)))
+        let widthLimit = (
+            maximumWidth
+            - metrics.horizontalPadding
+            - CGFloat(columns - 1) * metrics.horizontalSpacing
+        ) / CGFloat(columns)
+        let cardWidth = floor(max(metrics.emergencyMinimumWidth, min(preferredWidth, widthLimit)))
+        let previewHeight = previewHeight(for: cardWidth, metrics: metrics)
+        let itemHeight = itemHeight(for: cardWidth, metrics: metrics)
+        let contentHeight = chromeHeight
+            + metrics.verticalPadding
+            + CGFloat(rows) * itemHeight
+            + CGFloat(max(0, rows - 1)) * metrics.verticalSpacing
+        let panelWidth = min(
+            maximumWidth,
+            max(
+                metrics.minimumPanelWidth,
+                CGFloat(columns) * cardWidth
+                    + CGFloat(max(0, columns - 1)) * metrics.horizontalSpacing
+                    + metrics.horizontalPadding
+            )
+        )
+        return SwitcherLayout(
+            columns: columns,
+            rows: rows,
+            previewSize: CGSize(width: cardWidth, height: previewHeight),
+            itemSize: CGSize(width: cardWidth, height: itemHeight),
+            horizontalSpacing: metrics.horizontalSpacing,
+            verticalSpacing: metrics.verticalSpacing,
+            panelSize: CGSize(width: panelWidth, height: min(maximumHeight, contentHeight)),
+            requiresVerticalScrolling: contentHeight > maximumHeight
         )
     }
 
-    private func fittedCardWidth(
-        widthLimit: CGFloat,
-        heightLimit: CGFloat,
-        metrics: Metrics
+    private func adaptivePreferredWidth(
+        _ preferredWidth: CGFloat,
+        availableWidth: CGFloat,
+        appearance: SwitcherAppearance
     ) -> CGFloat {
-        let heightBoundWidth: CGFloat
-        if let fixedHeight = metrics.fixedItemHeight {
-            guard heightLimit >= fixedHeight else { return 0 }
-            heightBoundWidth = metrics.preferredWidth
-        } else {
-            let previewHeightLimit = heightLimit - metrics.metadataSpacing - metrics.metadataHeight
-            heightBoundWidth = max(0, previewHeightLimit) * metrics.previewAspectRatio
+        guard appearance == .thumbnails else { return preferredWidth }
+        switch availableWidth {
+        case ..<1_300: return 150
+        case ..<1_900: return 165
+        default: return 175
         }
-        return floor(min(metrics.preferredWidth, widthLimit, heightBoundWidth))
     }
 
     private func previewHeight(for width: CGFloat, metrics: Metrics) -> CGFloat {
@@ -163,59 +160,27 @@ struct SwitcherLayoutCalculator: Sendable {
             + metrics.metadataHeight
     }
 
-    private func scrollingFallback(
-        itemCount: Int,
-        maximumWidth: CGFloat,
-        maximumHeight: CGFloat,
-        metrics: Metrics
-    ) -> SwitcherLayout {
-        let columns = max(
-            1,
-            Int((maximumWidth - metrics.horizontalPadding + metrics.horizontalSpacing)
-                / (metrics.emergencyMinimumWidth + metrics.horizontalSpacing))
-        )
-        let rows = Int(ceil(Double(itemCount) / Double(columns)))
-        let widthLimit = (
-            maximumWidth
-            - metrics.horizontalPadding
-            - CGFloat(columns - 1) * metrics.horizontalSpacing
-        ) / CGFloat(columns)
-        let cardWidth = max(1, floor(widthLimit))
-        let previewHeight = previewHeight(for: cardWidth, metrics: metrics)
-        let itemHeight = itemHeight(for: cardWidth, metrics: metrics)
-        return SwitcherLayout(
-            columns: columns,
-            rows: rows,
-            previewSize: CGSize(width: cardWidth, height: previewHeight),
-            itemSize: CGSize(width: cardWidth, height: itemHeight),
-            horizontalSpacing: metrics.horizontalSpacing,
-            verticalSpacing: metrics.verticalSpacing,
-            panelSize: CGSize(width: maximumWidth, height: maximumHeight),
-            requiresVerticalScrolling: true
-        )
-    }
-
     private func metrics(for appearance: SwitcherAppearance) -> Metrics {
         switch appearance {
         case .thumbnails:
             Metrics(
-                preferredWidth: 330,
-                normalMinimumWidth: 180,
-                emergencyMinimumWidth: 128,
-                previewAspectRatio: 1.60,
+                preferredWidth: 165,
+                normalMinimumWidth: 130,
+                emergencyMinimumWidth: 125,
+                previewAspectRatio: 1.66,
                 fixedItemHeight: nil,
-                metadataHeight: 44,
+                metadataHeight: 40,
                 metadataSpacing: 8,
-                horizontalSpacing: 12,
-                verticalSpacing: 16,
-                horizontalPadding: 28,
-                verticalPadding: 20,
-                headerHeight: 42,
-                minimumPanelWidth: 320
+                horizontalSpacing: 14,
+                verticalSpacing: 14,
+                horizontalPadding: 40,
+                verticalPadding: 32,
+                minimumPanelWidth: 240,
+                maximumPanelWidth: 1_560
             )
         case .appIcons:
             Metrics(
-                preferredWidth: 180,
+                preferredWidth: 154,
                 normalMinimumWidth: 118,
                 emergencyMinimumWidth: 88,
                 previewAspectRatio: 1.08,
@@ -224,26 +189,26 @@ struct SwitcherLayoutCalculator: Sendable {
                 metadataSpacing: 0,
                 horizontalSpacing: 10,
                 verticalSpacing: 10,
-                horizontalPadding: 28,
-                verticalPadding: 20,
-                headerHeight: 42,
-                minimumPanelWidth: 300
+                horizontalPadding: 40,
+                verticalPadding: 32,
+                minimumPanelWidth: 220,
+                maximumPanelWidth: 1_360
             )
         case .windowTitles:
             Metrics(
-                preferredWidth: 410,
+                preferredWidth: 360,
                 normalMinimumWidth: 260,
                 emergencyMinimumWidth: 210,
                 previewAspectRatio: 6.8,
-                fixedItemHeight: 58,
+                fixedItemHeight: 54,
                 metadataHeight: 0,
                 metadataSpacing: 0,
                 horizontalSpacing: 7,
                 verticalSpacing: 7,
-                horizontalPadding: 28,
-                verticalPadding: 18,
-                headerHeight: 42,
-                minimumPanelWidth: 400
+                horizontalPadding: 40,
+                verticalPadding: 26,
+                minimumPanelWidth: 360,
+                maximumPanelWidth: 1_440
             )
         }
     }

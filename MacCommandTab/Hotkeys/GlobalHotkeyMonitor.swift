@@ -26,6 +26,10 @@ final class GlobalHotkeyMonitor {
         navigationLayout = layout
     }
 
+    func synchronizeSelection(_ index: Int?) {
+        stateMachine.synchronizeSelection(index, itemCount: itemCount)
+    }
+
     func updateActiveSession(
         itemCount: Int,
         selectedIndex: Int?,
@@ -111,6 +115,9 @@ final class GlobalHotkeyMonitor {
         case (.keyDown, 125) where stateMachine.isActive:
             input = .moveDown
             shouldSuppress = true
+        case (.keyDown, 36) where stateMachine.isActive:
+            input = .enter
+            shouldSuppress = true
         case (.keyDown, 51) where stateMachine.isActive:
             input = nil
             directAction = .searchBackspace
@@ -122,7 +129,9 @@ final class GlobalHotkeyMonitor {
         case (.keyDown, 53) where stateMachine.isActive:
             input = .escape
             shouldSuppress = true
-        case (.flagsChanged, _) where stateMachine.isActive && !flags.contains(.maskAlternate):
+        case (.flagsChanged, _) where stateMachine.isActive
+            && !flags.contains(.maskAlternate)
+            && searchQueryIsEmpty:
             input = .optionReleased
         default:
             input = nil

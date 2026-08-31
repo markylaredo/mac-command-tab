@@ -6,7 +6,11 @@ final class WindowDiscovery: @unchecked Sendable {
         applications.flatMap(discoverWindows)
     }
 
-    func describeWindow(_ element: AXUIElement, application: ApplicationSnapshot) -> WindowInfo? {
+    func describeWindow(
+        _ element: AXUIElement,
+        application: ApplicationSnapshot,
+        focusedWindow: AXUIElement? = nil
+    ) -> WindowInfo? {
         guard stringAttribute(kAXRoleAttribute as CFString, from: element) == (kAXWindowRole as String) else {
             return nil
         }
@@ -24,6 +28,7 @@ final class WindowDiscovery: @unchecked Sendable {
 
         let title = stringAttribute(kAXTitleAttribute as CFString, from: element)?.trimmingCharacters(in: .whitespacesAndNewlines)
         let minimized = boolAttribute(kAXMinimizedAttribute as CFString, from: element) ?? false
+        let fullscreen = boolAttribute("AXFullScreen" as CFString, from: element) ?? false
         let displayTitle = title.flatMap { $0.isEmpty ? nil : $0 } ?? "Untitled Window"
 
         return WindowInfo(
@@ -35,6 +40,9 @@ final class WindowDiscovery: @unchecked Sendable {
             icon: application.icon,
             accessibilityElement: element,
             isMinimized: minimized,
+            isFullscreen: fullscreen,
+            isApplicationHidden: application.isHidden,
+            isFocused: focusedWindow.map { CFEqual($0, element) } ?? false,
             frame: CGRect(origin: position, size: size)
         )
     }
@@ -44,7 +52,10 @@ final class WindowDiscovery: @unchecked Sendable {
         guard let windows: [AXUIElement] = attribute(kAXWindowsAttribute as CFString, from: appElement) else {
             return []
         }
-        return windows.compactMap { describeWindow($0, application: application) }
+        let focusedWindow: AXUIElement? = attribute(kAXFocusedWindowAttribute as CFString, from: appElement)
+        return windows.compactMap {
+            describeWindow($0, application: application, focusedWindow: focusedWindow)
+        }
     }
 
     private func attribute<T>(_ name: CFString, from element: AXUIElement) -> T? {
