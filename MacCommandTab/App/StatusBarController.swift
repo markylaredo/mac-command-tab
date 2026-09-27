@@ -9,6 +9,26 @@ final class StatusBarController: NSObject {
     private let permissionItem = NSMenuItem(title: "Accessibility: Checking…", action: nil, keyEquivalent: "")
     private let previewPermissionItem = NSMenuItem(title: "Window Previews: Checking…", action: nil, keyEquivalent: "")
     private let glassItem = NSMenuItem(title: "Glass Background", action: #selector(toggleGlass(_:)), keyEquivalent: "")
+    private let dockPreviewToggleItem = NSMenuItem(
+        title: "Dock Hover Previews",
+        action: #selector(toggleDockPreviews(_:)),
+        keyEquivalent: ""
+    )
+    private let dockPreviewStatusItem = NSMenuItem(
+        title: "Dock Previews: Checking…",
+        action: nil,
+        keyEquivalent: ""
+    )
+    /// Runs the Dock accessibility report on demand. Diagnostic for checking
+    /// whether the Dock's hierarchy can still be resolved, including after a macOS
+    /// update. Writing a file when the user explicitly asks for it is harmless in
+    /// a release build, and gating it on `DEBUG` would mean it is never available
+    /// in this project, which does not define that condition.
+    private let dockDiagnosticsItem = NSMenuItem(
+        title: "Write Dock Accessibility Report",
+        action: #selector(writeDockDiagnostics),
+        keyEquivalent: ""
+    )
     private var presetItems: [SwitcherPreset: NSMenuItem] = [:]
     private var appearanceItems: [SwitcherAppearance: NSMenuItem] = [:]
     private var themeItems: [SwitcherTheme: NSMenuItem] = [:]
@@ -47,6 +67,12 @@ final class StatusBarController: NSObject {
         coordinator.onAppearanceChanged = { [weak self] appearance in
             self?.updateAppearanceSelection(appearance)
         }
+        coordinator.onDockPreviewAvailabilityChanged = { [weak self] availability in
+            self?.dockPreviewStatusItem.title = availability.menuTitle
+        }
+        coordinator.onDockPreviewEnabledChanged = { [weak self] enabled in
+            self?.dockPreviewToggleItem.state = enabled ? .on : .off
+        }
     }
 
     private func configureStatusItem() {
@@ -67,6 +93,11 @@ final class StatusBarController: NSObject {
         menu.addItem(makeThemeMenu())
         configureGlassItem()
         menu.addItem(glassItem)
+        configureDockPreviewItems()
+        menu.addItem(dockPreviewToggleItem)
+        menu.addItem(dockPreviewStatusItem)
+        dockDiagnosticsItem.target = self
+        menu.addItem(dockDiagnosticsItem)
         menu.addItem(makeSelectionEffectMenu())
         menu.addItem(.separator())
 
@@ -166,6 +197,18 @@ final class StatusBarController: NSObject {
         glassItem.toolTip = "Use native macOS translucency behind the switcher"
     }
 
+    private func configureDockPreviewItems() {
+        dockPreviewToggleItem.target = self
+        dockPreviewToggleItem.state = coordinator.isDockPreviewEnabled ? .on : .off
+        dockPreviewToggleItem.toolTip =
+            "Preview an application's windows by hovering over its Dock icon"
+        dockPreviewStatusItem.isEnabled = false
+        dockPreviewStatusItem.title = coordinator.dockPreviewAvailability.menuTitle
+        // Seed the Settings window's status row too, so both surfaces agree from
+        // the first launch rather than only after the first change.
+        coordinator.syncPermissionWindowDockAvailability()
+    }
+
     private func makeSelectionEffectMenu() -> NSMenuItem {
         let item = NSMenuItem(title: "Selection Effect", action: nil, keyEquivalent: "")
         let submenu = NSMenu(title: "Selection Effect")
@@ -246,6 +289,49 @@ final class StatusBarController: NSObject {
     @objc private func toggleGlass(_ sender: NSMenuItem) {
         coordinator.setGlassEnabled(sender.state != .on)
     }
+
+    @objc private func toggleDockPreviews(_ sender: NSMenuItem) {
+        coordinator.setDockPreviewEnabled(sender.state != .on)
+    }
+
+    @objc private func writeDockDiagnostics() {
+        DockAccessibilityProbe.writeReport()
+        let wasTracing = isDockTraceArmed
+        if wasTracing {
+            DockHoverTrace.shared.end()
+        } else {
+            DockHoverTrace.shared.begin()
+        }
+        isDockTraceArmed = !wasTracing
+
+        // An explicit user action from the menu, so reporting the result here is
+        // appropriate. Nothing in the hover path ever shows an alert.
+        let alert = NSAlert()
+        alert.messageText = "Dock Accessibility Report"
+        if !AccessibilityPermission.isGranted {
+            alert.informativeText = "Accessibility is not granted, so the Dock cannot be read."
+        } else if isDockTraceArmed {
+            alert.informativeText = """
+                Report written to:
+                \(DockAccessibilityProbe.outputURL.path)
+
+                Hover trace armed. Hover a few Dock icons, then run this command \
+                again to stop tracing and read the result.
+                """
+        } else {
+            alert.informativeText = """
+                Report written to:
+                \(DockAccessibilityProbe.outputURL.path)
+
+                Hover trace stopped. Trace written to:
+                \(DockHoverTrace.outputURL.path)
+                """
+        }
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
+    private var isDockTraceArmed = false
 
     @objc private func selectSelectionEffect(_ sender: NSMenuItem) {
         guard let rawValue = sender.representedObject as? String,

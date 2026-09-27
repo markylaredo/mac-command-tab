@@ -44,6 +44,28 @@
 		A10000000000000000000024 /* SwitcherAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* SwitcherAppearance.swift */; };
 		A10000000000000000000025 /* SwitcherLayoutCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* SwitcherLayoutCalculator.swift */; };
 		A10000000000000000000026 /* WindowSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* WindowSearch.swift */; };
+		A10000000000000000000030 /* DockAccessibilityProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002A /* DockAccessibilityProbe.swift */; };
+		A100000000000000000000A0 /* DockHoverTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000A0 /* DockHoverTrace.swift */; };
+		A10000000000000000000090 /* DockHoverChangeLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000090 /* DockHoverChangeLog.swift */; };
+		A10000000000000000000080 /* DockHoverPointerGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000080 /* DockHoverPointerGate.swift */; };
+		A10000000000000000000081 /* DockHoverPointerGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000081 /* DockHoverPointerGateTests.swift */; };
+		A10000000000000000000070 /* DockPreviewPanelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000070 /* DockPreviewPanelTests.swift */; };
+		A10000000000000000000060 /* DockPreviewPreferenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000060 /* DockPreviewPreferenceTests.swift */; };
+		A10000000000000000000050 /* DockPreviewAvailability.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000050 /* DockPreviewAvailability.swift */; };
+		A10000000000000000000040 /* DockHoverStateMachineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000040 /* DockHoverStateMachineTests.swift */; };
+		A10000000000000000000041 /* DockItemResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000041 /* DockItemResolverTests.swift */; };
+		A10000000000000000000042 /* DockPreviewLayoutCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000042 /* DockPreviewLayoutCalculatorTests.swift */; };
+		A10000000000000000000031 /* DockHoverStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002B /* DockHoverStateMachine.swift */; };
+		A10000000000000000000032 /* DockHoverMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002C /* DockHoverMonitor.swift */; };
+		A10000000000000000000033 /* DockApplicationResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002D /* DockApplicationResolver.swift */; };
+		A10000000000000000000034 /* DockAccessibilityApplicationResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002E /* DockAccessibilityApplicationResolver.swift */; };
+		A10000000000000000000035 /* DockPreviewLayoutCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002F /* DockPreviewLayoutCalculator.swift */; };
+		A10000000000000000000036 /* DockPreviewPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000030 /* DockPreviewPreference.swift */; };
+		A10000000000000000000037 /* DockPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000031 /* DockPreviewView.swift */; };
+		A10000000000000000000038 /* DockPreviewPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000032 /* DockPreviewPanel.swift */; };
+		A10000000000000000000039 /* DockWindowPreviewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000033 /* DockWindowPreviewController.swift */; };
+		A1000000000000000000003A /* DockHoverDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000034 /* DockHoverDiagnostics.swift */; };
+		A1000000000000000000003B /* WindowCloser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000035 /* WindowCloser.swift */; };
 		A10000000000000000000027 /* SwitcherLayoutCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* SwitcherLayoutCalculatorTests.swift */; };
 		A10000000000000000000028 /* AdaptiveSwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* AdaptiveSwitcherView.swift */; };
 		A10000000000000000000029 /* LiveWindowPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* LiveWindowPreview.swift */; };
@@ -102,6 +124,28 @@
 		A20000000000000000000027 /* AdaptiveSwitcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveSwitcherView.swift; sourceTree = "<group>"; };
 		A20000000000000000000028 /* LiveWindowPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveWindowPreview.swift; sourceTree = "<group>"; };
 		A20000000000000000000029 /* SwitcherChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitcherChrome.swift; sourceTree = "<group>"; };
+		A2000000000000000000002A /* DockAccessibilityProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockAccessibilityProbe.swift; sourceTree = "<group>"; };
+		A200000000000000000000A0 /* DockHoverTrace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockHoverTrace.swift; sourceTree = "<group>"; };
+		A20000000000000000000090 /* DockHoverChangeLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockHoverChangeLog.swift; sourceTree = "<group>"; };
+		A20000000000000000000080 /* DockHoverPointerGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockHoverPointerGate.swift; sourceTree = "<group>"; };
+		A20000000000000000000081 /* DockHoverPointerGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockHoverPointerGateTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000070 /* DockPreviewPanelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockPreviewPanelTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000060 /* DockPreviewPreferenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockPreviewPreferenceTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000050 /* DockPreviewAvailability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockPreviewAvailability.swift; sourceTree = "<group>"; };
+		A20000000000000000000040 /* DockHoverStateMachineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockHoverStateMachineTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000041 /* DockItemResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockItemResolverTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000042 /* DockPreviewLayoutCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockPreviewLayoutCalculatorTests.swift; sourceTree = "<group>"; };
+		A2000000000000000000002B /* DockHoverStateMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockHoverStateMachine.swift; sourceTree = "<group>"; };
+		A2000000000000000000002C /* DockHoverMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockHoverMonitor.swift; sourceTree = "<group>"; };
+		A2000000000000000000002D /* DockApplicationResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockApplicationResolver.swift; sourceTree = "<group>"; };
+		A2000000000000000000002E /* DockAccessibilityApplicationResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockAccessibilityApplicationResolver.swift; sourceTree = "<group>"; };
+		A2000000000000000000002F /* DockPreviewLayoutCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockPreviewLayoutCalculator.swift; sourceTree = "<group>"; };
+		A20000000000000000000030 /* DockPreviewPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockPreviewPreference.swift; sourceTree = "<group>"; };
+		A20000000000000000000031 /* DockPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockPreviewView.swift; sourceTree = "<group>"; };
+		A20000000000000000000032 /* DockPreviewPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockPreviewPanel.swift; sourceTree = "<group>"; };
+		A20000000000000000000033 /* DockWindowPreviewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockWindowPreviewController.swift; sourceTree = "<group>"; };
+		A20000000000000000000034 /* DockHoverDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockHoverDiagnostics.swift; sourceTree = "<group>"; };
+		A20000000000000000000035 /* WindowCloser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowCloser.swift; sourceTree = "<group>"; };
 		A30000000000000000000001 /* MacCommandTab.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacCommandTab.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A30000000000000000000002 /* MacCommandTabTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MacCommandTabTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -143,6 +187,7 @@
 				A60000000000000000000005 /* Windows */,
 				A60000000000000000000006 /* Switcher */,
 				A60000000000000000000007 /* Permissions */,
+				A70000000000000000000002 /* Dock */,
 				A6000000000000000000000B /* Previews */,
 				A6000000000000000000000C /* Effects */,
 			);
@@ -175,6 +220,7 @@
 				A20000000000000000000007 /* WindowDiscovery.swift */,
 				A20000000000000000000008 /* WindowTracker.swift */,
 				A20000000000000000000009 /* WindowActivator.swift */,
+				A20000000000000000000035 /* WindowCloser.swift */,
 			);
 			path = Windows;
 			sourceTree = "<group>";
@@ -212,6 +258,12 @@
 				A20000000000000000000015 /* WindowPreviewMatcherTests.swift */,
 				A20000000000000000000022 /* WindowFrameCacheTests.swift */,
 				A20000000000000000000026 /* SwitcherLayoutCalculatorTests.swift */,
+				A20000000000000000000081 /* DockHoverPointerGateTests.swift */,
+				A20000000000000000000070 /* DockPreviewPanelTests.swift */,
+				A20000000000000000000060 /* DockPreviewPreferenceTests.swift */,
+				A20000000000000000000040 /* DockHoverStateMachineTests.swift */,
+				A20000000000000000000041 /* DockItemResolverTests.swift */,
+				A20000000000000000000042 /* DockPreviewLayoutCalculatorTests.swift */,
 			);
 			path = MacCommandTabTests;
 			sourceTree = "<group>";
@@ -231,6 +283,28 @@
 				A30000000000000000000002 /* MacCommandTabTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A70000000000000000000002 /* Dock */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000002A /* DockAccessibilityProbe.swift */,
+				A200000000000000000000A0 /* DockHoverTrace.swift */,
+				A20000000000000000000090 /* DockHoverChangeLog.swift */,
+				A20000000000000000000080 /* DockHoverPointerGate.swift */,
+				A20000000000000000000050 /* DockPreviewAvailability.swift */,
+				A2000000000000000000002B /* DockHoverStateMachine.swift */,
+				A2000000000000000000002C /* DockHoverMonitor.swift */,
+				A2000000000000000000002D /* DockApplicationResolver.swift */,
+				A2000000000000000000002E /* DockAccessibilityApplicationResolver.swift */,
+				A2000000000000000000002F /* DockPreviewLayoutCalculator.swift */,
+				A20000000000000000000030 /* DockPreviewPreference.swift */,
+				A20000000000000000000031 /* DockPreviewView.swift */,
+				A20000000000000000000032 /* DockPreviewPanel.swift */,
+				A20000000000000000000033 /* DockWindowPreviewController.swift */,
+				A20000000000000000000034 /* DockHoverDiagnostics.swift */,
+			);
+			path = Dock;
 			sourceTree = "<group>";
 		};
 		A6000000000000000000000B /* Previews */ = {
@@ -399,6 +473,22 @@
 				A10000000000000000000024 /* SwitcherAppearance.swift in Sources */,
 				A10000000000000000000025 /* SwitcherLayoutCalculator.swift in Sources */,
 				A10000000000000000000026 /* WindowSearch.swift in Sources */,
+				A10000000000000000000030 /* DockAccessibilityProbe.swift in Sources */,
+				A100000000000000000000A0 /* DockHoverTrace.swift in Sources */,
+				A10000000000000000000090 /* DockHoverChangeLog.swift in Sources */,
+				A10000000000000000000080 /* DockHoverPointerGate.swift in Sources */,
+				A10000000000000000000050 /* DockPreviewAvailability.swift in Sources */,
+				A10000000000000000000031 /* DockHoverStateMachine.swift in Sources */,
+				A10000000000000000000032 /* DockHoverMonitor.swift in Sources */,
+				A10000000000000000000033 /* DockApplicationResolver.swift in Sources */,
+				A10000000000000000000034 /* DockAccessibilityApplicationResolver.swift in Sources */,
+				A10000000000000000000035 /* DockPreviewLayoutCalculator.swift in Sources */,
+				A10000000000000000000036 /* DockPreviewPreference.swift in Sources */,
+				A10000000000000000000037 /* DockPreviewView.swift in Sources */,
+				A10000000000000000000038 /* DockPreviewPanel.swift in Sources */,
+				A10000000000000000000039 /* DockWindowPreviewController.swift in Sources */,
+				A1000000000000000000003A /* DockHoverDiagnostics.swift in Sources */,
+				A1000000000000000000003B /* WindowCloser.swift in Sources */,
 				A10000000000000000000028 /* AdaptiveSwitcherView.swift in Sources */,
 				A1000000000000000000002A /* SwitcherChrome.swift in Sources */,
 				A1000000000000000000000D /* AccessibilityPermission.swift in Sources */,
@@ -431,6 +521,12 @@
 				A10000000000000000000016 /* WindowPreviewMatcherTests.swift in Sources */,
 				A10000000000000000000023 /* WindowFrameCacheTests.swift in Sources */,
 				A10000000000000000000027 /* SwitcherLayoutCalculatorTests.swift in Sources */,
+				A10000000000000000000081 /* DockHoverPointerGateTests.swift in Sources */,
+				A10000000000000000000070 /* DockPreviewPanelTests.swift in Sources */,
+				A10000000000000000000060 /* DockPreviewPreferenceTests.swift in Sources */,
+				A10000000000000000000040 /* DockHoverStateMachineTests.swift in Sources */,
+				A10000000000000000000041 /* DockItemResolverTests.swift in Sources */,
+				A10000000000000000000042 /* DockPreviewLayoutCalculatorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

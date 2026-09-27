@@ -37,6 +37,41 @@ Record the macOS version, Mac model, build number, display arrangement, and resu
 - [ ] Minimized, hidden, protected, and full-screen windows show a sensible fallback where capture is unavailable.
 - [ ] Portrait, ultrawide, and standard windows preserve aspect ratio without stretching.
 
+## Dock hover previews
+
+- [ ] Small, Medium, and Large thumbnail sizes persist after relaunch and apply on the next hover.
+- [ ] Groups with 4, 10, and 20 windows progressively shrink; overflow remains reachable by scrolling.
+- [ ] On a narrow display, columns reduce without clipping cards horizontally.
+- [ ] Hovering a card briefly brings its real window forward; the popup stays visible and cards do not reorder.
+- [ ] Leaving the popup restores the original window; clicking a card commits without restoring it.
+- [ ] Rapid card-to-card movement and closing a hovered window do not activate a stale window.
+- [ ] Turning off “Show the real window on hover” keeps hover limited to the card highlight.
+- [ ] Hovering minimized, hidden, or full-screen windows does not restore them or switch Spaces; clicking still activates them.
+
+Requires Accessibility access. Record the macOS version and Dock configuration for
+each run: Dock application resolution depends on the Dock's accessibility
+hierarchy, which is not public API and can differ between releases.
+
+- [ ] Hovering an application's Dock icon for roughly 300 ms shows previews of that application's windows only.
+- [ ] Each card shows the correct window with its title.
+- [ ] Clicking a card activates that exact window.
+- [ ] A minimized window can be restored from its card.
+- [ ] The pointer can travel from the Dock icon into the popup without the popup disappearing.
+- [ ] Moving directly to another Dock app swaps the previews without leaving stale cards.
+- [ ] Leaving both the Dock and the popup dismisses it after the grace period.
+- [ ] Hovering the Trash, a folder, or a minimized-window tile shows nothing.
+- [ ] An application with a single window still shows its preview.
+- [ ] An application with no switchable windows shows no popup at all.
+- [ ] The popup is anchored to the hovered icon and stays fully on screen, for bottom, left, and right Dock positions.
+- [ ] With two displays, the popup appears on the display holding the Dock icon.
+- [ ] Thumbnail mode shows static previews; Live Preview mode shows live ones.
+- [ ] Live previews stop after dismissal. Confirm from the PreviewSession log that no stream remains active.
+- [ ] The close button appears only while hovering a card, closes that window, and does not quit the application.
+- [ ] Closing the last window dismisses the popup.
+- [ ] Opening the Option–Tab switcher while a Dock preview is visible dismisses the Dock preview, and the switcher behaves normally.
+- [ ] Turning the feature off in Settings stops all Dock preview activity immediately.
+- [ ] Revoking Accessibility while the feature is enabled dismisses any popup and leaves the switcher working.
+
 ## Displays and accessibility
 
 - [ ] Single Retina display.
@@ -51,6 +86,10 @@ Record the macOS version, Mac model, build number, display arrangement, and resu
 - [ ] VoiceOver announces application, window title, and selected state.
 
 ## Lifecycle and release identity
+
+- [ ] Launch starts quietly in the menu bar without opening Settings or automatically requesting permissions.
+- [ ] Opening Settings from the menu bar or reopening the app shows General, Previews, and Permissions tabs.
+- [ ] All settings remain reachable by scrolling on a small screen and via keyboard navigation.
 
 - [ ] Launch at Login enables, disables, and reports approval-required state correctly.
 - [ ] Quit tears down previews and leaves no MacCommandTab process.

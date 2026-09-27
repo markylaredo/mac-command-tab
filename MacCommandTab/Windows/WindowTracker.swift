@@ -56,7 +56,38 @@ final class WindowTracker {
     private var iconCache: [pid_t: NSImage] = [:]
     private var refreshGeneration = WindowTrackerRefreshGeneration()
     private(set) var windows: [WindowInfo] = []
-    var onWindowsChanged: (([WindowInfo]) -> Void)?
+    private var changeObservers: [UUID: ([WindowInfo]) -> Void] = [:]
+
+    /// Registers an observer for window list changes.
+    ///
+    /// Multicast rather than a single closure: the switcher and the Dock hover
+    /// previews both need this, and neither should be able to silently displace
+    /// the other. Returns a token to pass to `removeChangeObserver`.
+    @discardableResult
+    func addChangeObserver(_ observer: @escaping ([WindowInfo]) -> Void) -> UUID {
+        let token = UUID()
+        changeObservers[token] = observer
+        return token
+    }
+
+    func removeChangeObserver(_ token: UUID) {
+        changeObservers.removeValue(forKey: token)
+    }
+
+    private func notifyChangeObservers() {
+        for observer in changeObservers.values {
+            observer(windows)
+        }
+    }
+
+    /// The tracked windows belonging to one application.
+    ///
+    /// A view onto the already-discovered list rather than a new discovery path:
+    /// it filters the same list the switcher receives, so it inherits the same
+    /// notion of a switchable window and cannot drift from it.
+    func windows(for processIdentifier: pid_t) -> [WindowInfo] {
+        windows.filter { $0.pid == processIdentifier }
+    }
 
     func start() {
         refreshGeneration.start()
@@ -88,7 +119,7 @@ final class WindowTracker {
         observers.values.forEach { CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource($0), .defaultMode) }
         observers.removeAll()
         windows = []
-        onWindowsChanged?([])
+        notifyChangeObservers()
     }
 
     func refresh(completion: (@MainActor @Sendable () -> Void)? = nil) {
@@ -102,7 +133,7 @@ final class WindowTracker {
                 MainActor.assumeIsolated {
                     guard let self, self.refreshGeneration.accepts(generation) else { return }
                     self.windows = self.ordering.order(discovered)
-                    self.onWindowsChanged?(self.windows)
+                    self.notifyChangeObservers()
                     completion?()
                 }
             }

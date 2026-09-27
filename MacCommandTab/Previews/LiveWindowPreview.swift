@@ -584,8 +584,9 @@ private final class LivePreviewSession: NSObject, SCStreamOutput, SCStreamDelega
     }
 
     func attach(_ layer: AVSampleBufferDisplayLayer) {
-        let retainsLastFrame = layer.status == .rendering
-        if layer.status == .failed { layer.flushAndRemoveImage() }
+        let renderer = layer.sampleBufferRenderer
+        let retainsLastFrame = renderer.status == .rendering
+        if renderer.status == .failed { renderer.flush(removingDisplayedImage: true) }
         layer.opacity = retainsLastFrame ? 1 : 0
         let layerReference = WeakDisplayLayer(layer)
         outputQueue.async { [weak self, layerReference] in
@@ -666,15 +667,18 @@ private final class LivePreviewSession: NSObject, SCStreamOutput, SCStreamDelega
 
         let target = stateLock.withLock { displayLayer }
         guard let target else { return }
-        if target.status == .failed { target.flush() }
-        guard target.isReadyForMoreMediaData else { return }
+        // The renderer supports delivery on the capture queue; the layer's
+        // rendering methods are main-actor isolated in newer SDKs.
+        let renderer = target.sampleBufferRenderer
+        if renderer.status == .failed { renderer.flush() }
+        guard renderer.isReadyForMoreMediaData else { return }
         CMSetAttachment(
             sampleBuffer,
             key: kCMSampleAttachmentKey_DisplayImmediately,
             value: kCFBooleanTrue,
             attachmentMode: kCMAttachmentMode_ShouldPropagate
         )
-        target.enqueue(sampleBuffer)
+        renderer.enqueue(sampleBuffer)
 
         let isFirstFrame = stateLock.withLock { () -> Bool in
             guard !hasPresentedFrame else { return false }
@@ -836,6 +840,6 @@ struct LiveWindowPreviewView: NSViewRepresentable {
         if let windowID = nsView.windowID {
             nsView.previewCoordinator?.detach(nsView.displayLayer, from: windowID)
         }
-        nsView.displayLayer.flushAndRemoveImage()
+        nsView.displayLayer.sampleBufferRenderer.flush(removingDisplayedImage: true)
     }
 }

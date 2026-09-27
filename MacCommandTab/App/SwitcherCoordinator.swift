@@ -20,6 +20,21 @@ final class SwitcherCoordinator {
     )
     private let activator = WindowActivator()
     private let permissionWindow = PermissionsWindowController()
+    private lazy var dockPreview: DockWindowPreviewController = {
+        // A second preview service and coordinator, so Dock previews keep their
+        // own session accounting without ever sharing a session with the
+        // switcher. Only one of the two is ever active; the switcher wins.
+        let dockSnapshotService = WindowSnapshotService()
+        let dockPreviewService = WindowPreviewService(snapshotService: dockSnapshotService)
+        return DockWindowPreviewController(
+            resolver: DockAccessibilityApplicationResolver(),
+            tracker: tracker,
+            activator: activator,
+            livePreviewCoordinator: LivePreviewCoordinator(previewService: dockPreviewService),
+            previewService: dockPreviewService,
+            monitor: DockHoverMonitor()
+        )
+    }()
     private var permissionTimer: Timer?
     private var appDidBecomeActiveObserver: NSObjectProtocol?
     private var screenParametersObserver: NSObjectProtocol?
@@ -38,6 +53,11 @@ final class SwitcherCoordinator {
     private(set) var currentSelectionEffect = SwitcherSelectionEffect.saved
     private(set) var currentAppearance = SwitcherAppearance.saved
     private(set) var currentPreviewMode = PreviewMode.saved
+    /// Whether a switcher session is open.
+    ///
+    /// The switcher and the Dock hover previews both drive the preview pipelines,
+    /// so they must never be active at once. An open switcher always wins.
+    var isSwitcherSessionActive: Bool { !sessionWindows.isEmpty }
     var onAccessibilityPermissionStatusChanged: ((Bool) -> Void)?
     var onScreenCapturePermissionStatusChanged: ((Bool) -> Void)?
     var onShortcutStatusChanged: ((Bool) -> Void)?
@@ -48,6 +68,9 @@ final class SwitcherCoordinator {
     var onSelectionEffectChanged: ((SwitcherSelectionEffect) -> Void)?
     var onAppearanceChanged: ((SwitcherAppearance) -> Void)?
     var onPreviewModeChanged: ((PreviewMode) -> Void)?
+    var onDockPreviewEnabledChanged: ((Bool) -> Void)?
+    var onDockPreviewHoverDelayChanged: ((Int) -> Void)?
+    var onDockPreviewAvailabilityChanged: ((DockPreviewAvailability) -> Void)?
 
     init() {
         let snapshotService = WindowSnapshotService()
@@ -63,7 +86,7 @@ final class SwitcherCoordinator {
         panel.setAppearance(currentAppearance)
         permissionWindow.setPreviewMode(currentPreviewMode)
         hotkeyMonitor.updateNavigationLayout(currentPreset.navigationLayout)
-        tracker.onWindowsChanged = { [weak self] windows in
+        tracker.addChangeObserver { [weak self] windows in
             guard let self else { return }
             if self.sessionWindows.isEmpty {
                 self.hotkeyMonitor.updateItemCount(windows.count)
@@ -82,6 +105,16 @@ final class SwitcherCoordinator {
         permissionWindow.onPreviewModeChanged = { [weak self] mode in
             self?.setPreviewMode(mode)
         }
+        permissionWindow.onDockPreviewEnabledChanged = { [weak self] enabled in
+            self?.setDockPreviewEnabled(enabled)
+        }
+        permissionWindow.onDockPreviewHoverDelayChanged = { [weak self] milliseconds in
+            self?.setDockPreviewHoverDelay(milliseconds: milliseconds)
+        }
+        permissionWindow.onDockPreviewAvailabilityRefreshRequested = { [weak self] in
+            guard let self else { return }
+            self.permissionWindow.setDockPreviewAvailability(self.dockPreview.availability)
+        }
         livePreviewCoordinator.onPreviewUpdated = { [weak self] windowID, preview in
             self?.panel.updatePreview(preview, for: windowID)
         }
@@ -90,6 +123,7 @@ final class SwitcherCoordinator {
     func start() {
         applyAccessibilityPermission(AccessibilityPermission.isGranted)
         applyScreenCapturePermission(ScreenCapturePermission.isGranted)
+        startDockPreviews()
         permissionTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.applyAccessibilityPermission(AccessibilityPermission.isGranted)
@@ -115,14 +149,58 @@ final class SwitcherCoordinator {
             }
         }
 
-        if !accessibilityPermissionGranted { AccessibilityPermission.request() }
-        permissionWindow.show()
+        // Launch quietly. Permission setup remains available from the menu bar.
+        // Permission is usually already granted when the app is launched, in
+        // which case the change handler above never fires and no report would be
+        // written. Producing one at startup makes the Dock hierarchy checkable
+        // without needing to toggle anything.
+        DockAccessibilityProbe.writeReport()
     }
 
     private func refreshPermissionStatus() {
         applyAccessibilityPermission(AccessibilityPermission.isGranted)
         applyScreenCapturePermission(ScreenCapturePermission.isGranted)
         permissionWindow.updateStatus(notify: false)
+    }
+
+    // MARK: - Dock hover previews
+
+    private func startDockPreviews() {
+        dockPreview.isSwitcherSessionActive = { [weak self] in
+            self?.isSwitcherSessionActive ?? false
+        }
+        // The preview style is read from the coordinator that owns it, so the
+        // Dock previews always follow the setting the switcher uses. Reading the
+        // stored default directly would be a second source of truth that could
+        // disagree with a change made in Settings.
+        dockPreview.previewMode = { [weak self] in
+            self?.currentPreviewMode ?? PreviewMode.saved
+        }
+        dockPreview.onAvailabilityChanged = { [weak self] availability in
+            self?.onDockPreviewAvailabilityChanged?(availability)
+            self?.permissionWindow.setDockPreviewAvailability(availability)
+        }
+        dockPreview.start()
+    }
+
+    func setDockPreviewEnabled(_ enabled: Bool) {
+        dockPreview.setEnabled(enabled)
+        onDockPreviewEnabledChanged?(enabled)
+        onDockPreviewAvailabilityChanged?(dockPreview.availability)
+    }
+
+    func setDockPreviewHoverDelay(milliseconds: Int) {
+        dockPreview.setHoverDelay(milliseconds: milliseconds)
+        onDockPreviewHoverDelayChanged?(milliseconds)
+    }
+
+    var isDockPreviewEnabled: Bool { DockPreviewPreference.isEnabled }
+    var dockPreviewHoverDelayMilliseconds: Int { DockPreviewPreference.hoverDelayMilliseconds }
+    var dockPreviewAvailability: DockPreviewAvailability { dockPreview.availability }
+
+    /// Pushes current Dock preview availability into the Settings window.
+    func syncPermissionWindowDockAvailability() {
+        permissionWindow.setDockPreviewAvailability(dockPreview.availability)
     }
 
     func showPermissionWindow() {
@@ -142,6 +220,7 @@ final class SwitcherCoordinator {
         }
         endSwitcherSession(dismissPanel: false)
         panel.orderOut(nil)
+        dockPreview.stop()
     }
 
     func refreshWindows() {
@@ -219,9 +298,11 @@ final class SwitcherCoordinator {
         accessibilityPermissionGranted = granted
         onAccessibilityPermissionStatusChanged?(granted)
         permissionWindow.updateStatus(notify: false)
+        dockPreview.applyAccessibilityPermission(granted: granted)
         if granted {
             tracker.start()
             onShortcutStatusChanged?(hotkeyMonitor.start())
+            DockAccessibilityProbe.writeReport()
         } else {
             endSwitcherSession(restoringOriginalWindow: true)
             hotkeyMonitor.stop()
@@ -249,6 +330,7 @@ final class SwitcherCoordinator {
     private func handle(_ action: SwitcherAction) {
         switch action {
         case let .opened(selection):
+            dockPreview.dismissForSwitcher()
             let windows = tracker.windows
             sessionWindows = windows
             visibleSessionWindows = windows
